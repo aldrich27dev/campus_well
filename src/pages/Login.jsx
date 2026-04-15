@@ -12,15 +12,17 @@ const Login = () => {
   const [error, setError] = useState(false);
   
   const navigate = useNavigate();
-  const controls = useAnimation(); // For the shake effect
+  const controls = useAnimation(); 
   const { login } = useSystem();
   const [showRoleModal, setShowRoleModal] = useState(false);
 
   // Mock Credentials
   const MOCK_USERS = {
-    student: { email: 'aldrich@grc.edu.ph', password: 'password123', name: 'Aldrich' },
-    student: { email: 'jether@grc.edu.ph', password: 'password123', name: 'Jether' },
-    student: { email: 'rechelleann@grc.edu.ph', password: 'password123', name: 'Rechelle Ann' },
+    student: [
+      { email: 'aldrich@grc.edu.ph', password: 'password123', name: 'Aldrich' },
+      { email: 'jether@grc.edu.ph', password: 'password123', name: 'Jether' },
+      { email: 'rechelleann@grc.edu.ph', password: 'password123', name: 'Rechelle Ann' }
+    ],
     counselor: { email: 'counselor@grc.edu.ph', password: 'admin123', name: 'Ms. Jane' },
     admin: { email: 'admin@grc.edu.ph', password: 'root', name: 'SuperAdmin' }
   };
@@ -43,14 +45,29 @@ const Login = () => {
     e.preventDefault();
     setError(false);
 
-    const validUser = MOCK_USERS[role];
+    let authenticatedUser = null;
 
-    if (email === validUser.email && password === validUser.password) {
-      login({ email: email, name: validUser.name }, role); 
+    // FIX: Handling the different data structures (Array vs Object)
+    if (role === 'student') {
+      // Find within the array
+      authenticatedUser = MOCK_USERS.student.find(
+        (u) => u.email === email && u.password === password
+      );
+    } else {
+      // Direct object matching
+      const userRoleData = MOCK_USERS[role];
+      if (email === userRoleData.email && password === userRoleData.password) {
+        authenticatedUser = userRoleData;
+      }
+    }
+
+    if (authenticatedUser) {
+      // Pass the found user object to context
+      login({ email: authenticatedUser.email, name: authenticatedUser.name }, role); 
       navigate(`/${role}/dashboard`); 
     } else {
       setError(true);
-      triggerShake(); // Trigger the shake on the form container
+      triggerShake(); 
     }
   };
 
@@ -111,7 +128,6 @@ const Login = () => {
           </p>
         </div>
 
-        {/* Right Side wrapped in motion.div for the shake effect */}
         <motion.div 
           animate={controls}
           className="flex flex-col justify-center p-8 md:p-12 overflow-y-auto md:overflow-visible"
