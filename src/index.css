@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+@theme {
+  --color-campus-blue: #1e3a8a;
+  --color-campus-green: #92c37c;
+  --shadow-blue-glow: 0 10px 15px -3px rgba(30, 58, 138, 0.3);
+}
+
+/* Move this OUTSIDE the @theme block */
+@variant dark (&:where(.dark, .dark *));
+
+body {
+  @apply antialiased selection:bg-campus-blue/20 bg-white text-slate-900 transition-colors duration-300;
+}
+
+.dark body {
+  @apply bg-[#0f172a] text-slate-100;
+}
