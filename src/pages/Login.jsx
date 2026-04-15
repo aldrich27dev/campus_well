@@ -19,6 +19,7 @@ const Login = () => {
   // Mock Credentials
   const MOCK_USERS = {
     student: [
+      { email: 'admin@co', password: 'admin', name: 'Aldrich' },
       { email: 'aldrich@grc.edu.ph', password: 'password123', name: 'Aldrich' },
       { email: 'jether@grc.edu.ph', password: 'password123', name: 'Jether' },
       { email: 'rechelleann@grc.edu.ph', password: 'password123', name: 'Rechelle Ann' }

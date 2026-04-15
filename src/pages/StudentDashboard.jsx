@@ -15,7 +15,8 @@ const StudentDashboard = () => {
     { emoji: '😔', label: 'Down', color: 'hover:bg-yellow-50 dark:hover:bg-yellow-900/20 hover:text-yellow-600' },
     { emoji: '😠', label: 'Stressed', color: 'hover:bg-red-50 dark:hover:bg-red-900/20 hover:text-red-600' },
   ];
-      const displayName = user?.name || "User";
+      const displayName = user?.name || "Student!";
+
 
   return (
     <StudentLayout>
@@ -30,9 +31,6 @@ const StudentDashboard = () => {
           <p className="text-slate-500 dark:text-slate-400 text-xs font-bold uppercase tracking-[0.2em] mt-1">
             Welcome back to the {user?.role || 'Student'} Portal
           </p>
-            <p className="text-slate-500 dark:text-slate-400 mt-2 font-medium">
-              System Health: <span className="text-[#92c37c] font-bold uppercase tracking-widest text-[10px]">Active</span> • Your wellness data is synchronized.
-            </p>
           </motion.div>
         </section>
 

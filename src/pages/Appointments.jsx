@@ -131,7 +131,7 @@ const Appointments = () => {
                     {issubmitting ? (
                       <Loader2 className="animate-spin" size={20} />
                     ) : (
-                      <><Send size={18} /> Process Booking</>
+                      <><Send size={18} /> Send </>
                     )}
                   </button>
                   {isFormInvalid && !issubmitting && (
