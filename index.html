@@ -5,8 +5,15 @@
     <link rel="icon" type="image/svg+xml" href="./iconlogo.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>CampusWell</title>
-    <script type="module" crossorigin src="/campus_well/assets/index-BR1Rz7Gw.js"></script>
-    <link rel="stylesheet" crossorigin href="/campus_well/assets/index-D0yuJvoX.css">
+    <script>
+      try {
+        const isDark = localStorage.getItem('campuswell_dark_mode') === 'true';
+        document.documentElement.classList.toggle('dark', isDark);
+        document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+      } catch (e) {}
+    </script>
+    <script type="module" crossorigin src="/campus_well/assets/index-B-P_bklv.js"></script>
+    <link rel="stylesheet" crossorigin href="/campus_well/assets/index-LsMhLxQU.css">
   </head>
   <body>
     <div id="root"></div>
