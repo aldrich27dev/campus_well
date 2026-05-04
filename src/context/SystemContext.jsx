@@ -3,9 +3,23 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 const SystemContext = createContext(null);
 
 export const SystemProvider = ({ children }) => {
-  const [darkMode, setDarkMode] = useState(false);
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('campuswell_dark_mode') === 'true');
   const [notifications, setNotifications] = useState([]);
   const [user, setUser] = useState(null);
+  const [profile, setProfile] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('campuswell_profile')) || null;
+    } catch {
+      return null;
+    }
+  });
+  const [appointments, setAppointments] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('campuswell_appointments')) || [];
+    } catch {
+      return [];
+    }
+  });
 
   // 1. Initialize userRole from localStorage to persist after refresh
   // Fallback to 'student' if nothing is found
@@ -23,7 +37,22 @@ export const SystemProvider = ({ children }) => {
     }
   }, []);
 
-  const toggleDarkMode = () => setDarkMode(!darkMode);
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', darkMode);
+    localStorage.setItem('campuswell_dark_mode', String(darkMode));
+  }, [darkMode]);
+
+  useEffect(() => {
+    localStorage.setItem('campuswell_appointments', JSON.stringify(appointments));
+  }, [appointments]);
+
+  useEffect(() => {
+    if (profile) {
+      localStorage.setItem('campuswell_profile', JSON.stringify(profile));
+    }
+  }, [profile]);
+
+  const toggleDarkMode = () => setDarkMode(prev => !prev);
 
   // Helper to update both state and localStorage
   const updateRole = (role) => {
@@ -32,8 +61,11 @@ export const SystemProvider = ({ children }) => {
   };
 
   const login = (userData, role) => {
-    setUser(userData);
+    setUser({ ...userData, role });
     updateRole(role);
+    if (userData?.profile) {
+      setProfile(prev => ({ ...(prev || {}), ...userData.profile }));
+    }
   };
 
   const logout = () => {
@@ -42,15 +74,39 @@ export const SystemProvider = ({ children }) => {
     localStorage.removeItem('user_role'); // Clear storage
   };
 
-  const addNotification = (studentName, status) => {
+  const addNotification = (studentOrMeta, status, meta = {}) => {
+    const studentName = typeof studentOrMeta === 'string' ? studentOrMeta : studentOrMeta?.name || 'Student';
+    const yearLevel = typeof studentOrMeta === 'object' ? studentOrMeta?.yearLevel : meta.yearLevel;
     const newNotif = {
       id: Date.now(),
       student: studentName,
       status: status,
       time: "Just now",
-      read: false
+      read: false,
+      yearLevel,
+      risk: meta.risk || (typeof status === 'string' && status.toLowerCase().includes('high') ? 'High' : undefined),
+      type: meta.type || 'system'
     };
     setNotifications(prev => [newNotif, ...prev]);
+  };
+
+  const updateProfile = (nextProfile) => {
+    setProfile(nextProfile);
+  };
+
+  const updatePassword = (password) => {
+    setProfile(prev => ({ ...(prev || {}), password }));
+  };
+
+  const createAppointment = (appointment) => {
+    setAppointments(prev => [
+      { id: Date.now(), status: 'pending', assistantState: 'Pending', ...appointment },
+      ...prev,
+    ]);
+  };
+
+  const updateAppointment = (id, updates) => {
+    setAppointments(prev => prev.map(item => (item.id === id ? { ...item, ...updates } : item)));
   };
 
   return (
@@ -62,13 +118,17 @@ export const SystemProvider = ({ children }) => {
       userRole,      
       setUserRole: updateRole, // Uses the helper to ensure persistence
       user,
+      profile,
       login,
-      logout
+      logout,
+      updateProfile,
+      updatePassword,
+      appointments,
+      createAppointment,
+      updateAppointment,
     }}>
-      <div className={darkMode ? 'dark' : ''}>
-        <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100 transition-colors duration-300">
-          {children}
-        </div>
+      <div className="min-h-screen bg-background text-foreground transition-colors duration-300">
+        {children}
       </div>
     </SystemContext.Provider>
   );

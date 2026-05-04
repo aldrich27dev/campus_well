@@ -6,13 +6,13 @@ const PageLayout = ({ children, role, title }) => {
       
       <main className="flex-1">
         <header className="h-20 flex items-center justify-between px-10">
-          <h1 className="text-xl font-bold text-slate-800 italic uppercase tracking-tight">{title}</h1>
-          <div className="flex items-center gap-4 bg-white p-2 rounded-2xl border border-slate-100 shadow-sm">
+          <h1 className="text-xl font-bold text-foreground italic uppercase tracking-tight">{title}</h1>
+          <div className="flex items-center gap-4 bg-surface p-2 rounded-[1.5rem] border border-border shadow-surface">
             <div className="text-right">
               <p className="text-xs font-black text-campus-blue leading-none">Aldrich Naag</p>
-              <p className="text-[10px] text-slate-400 font-bold uppercase">{role}</p>
+              <p className="text-[10px] text-muted-foreground font-bold uppercase">{role}</p>
             </div>
-            <div className="h-10 w-10 bg-campus-green rounded-xl border-2 border-white shadow-sm flex items-center justify-center text-white font-bold">
+            <div className="h-10 w-10 bg-campus-green rounded-2xl border border-border/70 shadow-sm flex items-center justify-center text-primary-foreground font-bold">
               AN
             </div>
           </div>

@@ -1,18 +1,89 @@
 @import "tailwindcss";
 
+@custom-variant dark (&:where(.dark, .dark *));
+
 @theme {
-  --color-campus-blue: #1e3a8a;
-  --color-campus-green: #92c37c;
-  --shadow-blue-glow: 0 10px 15px -3px rgba(30, 58, 138, 0.3);
+  --color-campus-blue: oklch(0.64 0.08 176);
+  --color-campus-green: oklch(0.70 0.07 148);
+
+  --color-background: var(--cw-background);
+  --color-foreground: var(--cw-foreground);
+  --color-surface: var(--cw-surface);
+  --color-surface-elevated: var(--cw-surface-elevated);
+  --color-border: var(--cw-border);
+  --color-muted: var(--cw-muted);
+  --color-muted-foreground: var(--cw-muted-foreground);
+  --color-primary: var(--cw-primary);
+  --color-primary-foreground: var(--cw-primary-foreground);
+  --color-secondary: var(--cw-secondary);
+  --color-secondary-foreground: var(--cw-secondary-foreground);
+  --color-ring: var(--cw-ring);
+
+  --shadow-soft: 0 18px 40px var(--cw-shadow);
+  --shadow-surface: 0 1px 2px rgb(16 24 40 / 0.04), 0 16px 32px var(--cw-shadow);
 }
 
-/* Move this OUTSIDE the @theme block */
-@variant dark (&:where(.dark, .dark *));
-
-body {
-  @apply antialiased selection:bg-campus-blue/20 bg-white text-slate-900 transition-colors duration-300;
+:root {
+  color-scheme: light;
+  --cw-background: oklch(0.975 0.018 92);
+  --cw-foreground: oklch(0.28 0.03 245);
+  --cw-surface: oklch(0.988 0.01 92);
+  --cw-surface-elevated: oklch(0.962 0.015 92);
+  --cw-border: oklch(0.90 0.02 92);
+  --cw-muted: oklch(0.944 0.015 92);
+  --cw-muted-foreground: oklch(0.48 0.03 245);
+  --cw-primary: oklch(0.64 0.08 176);
+  --cw-primary-foreground: oklch(0.985 0.01 92);
+  --cw-secondary: oklch(0.58 0.07 148);
+  --cw-secondary-foreground: oklch(0.985 0.01 92);
+  --cw-ring: oklch(0.73 0.08 166 / 0.30);
+  --cw-shadow: oklch(0.44 0.02 245 / 0.08);
 }
 
-.dark body {
-  @apply bg-[#0f172a] text-slate-100;
+.dark {
+  color-scheme: dark;
+  --cw-background: oklch(0.19 0.03 235);
+  --cw-foreground: oklch(0.93 0.02 95);
+  --cw-surface: oklch(0.23 0.03 235);
+  --cw-surface-elevated: oklch(0.27 0.03 235);
+  --cw-border: oklch(0.31 0.03 235);
+  --cw-muted: oklch(0.25 0.03 235);
+  --cw-muted-foreground: oklch(0.72 0.02 95);
+  --cw-primary: oklch(0.75 0.08 164);
+  --cw-primary-foreground: oklch(0.17 0.02 235);
+  --cw-secondary: oklch(0.68 0.07 146);
+  --cw-secondary-foreground: oklch(0.17 0.02 235);
+  --cw-ring: oklch(0.76 0.08 164 / 0.28);
+  --cw-shadow: oklch(0.02 0 0 / 0.28);
+}
+
+@layer base {
+  *,
+  ::before,
+  ::after {
+    @apply border-border;
+  }
+
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-background text-foreground antialiased transition-colors duration-300;
+    background-image:
+      radial-gradient(circle at top left, color-mix(in oklab, var(--cw-primary) 11%, transparent), transparent 38%),
+      radial-gradient(circle at bottom right, color-mix(in oklab, var(--cw-secondary) 8%, transparent), transparent 42%),
+      linear-gradient(180deg, color-mix(in oklab, var(--cw-background) 96%, oklch(0.99 0.01 92)), var(--cw-background));
+  }
+
+  .dark body {
+    background-image:
+      radial-gradient(circle at top left, color-mix(in oklab, var(--cw-primary) 16%, transparent), transparent 40%),
+      radial-gradient(circle at bottom right, color-mix(in oklab, var(--cw-secondary) 10%, transparent), transparent 44%),
+      linear-gradient(180deg, color-mix(in oklab, var(--cw-background) 90%, oklch(0.96 0.01 235)), var(--cw-background));
+  }
+
+  ::selection {
+    @apply bg-primary/20 text-foreground;
+  }
 }

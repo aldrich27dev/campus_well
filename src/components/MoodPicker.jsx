@@ -3,11 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Smile, Meh, Frown, AlertCircle, Heart, ArrowRight } from 'lucide-react';
 
 const moods = [
-  { label: 'Great', value: 5, icon: Heart, color: 'text-rose-500', bg: 'bg-rose-50', darkBg: 'dark:bg-rose-500/10' },
-  { label: 'Good', value: 4, icon: Smile, color: 'text-emerald-500', bg: 'bg-emerald-50', darkBg: 'dark:bg-emerald-500/10' },
-  { label: 'Okay', value: 3, icon: Meh, color: 'text-blue-500', bg: 'bg-blue-50', darkBg: 'dark:bg-blue-500/10' },
-  { label: 'Down', value: 2, icon: Frown, color: 'text-amber-500', bg: 'bg-amber-50', darkBg: 'dark:bg-amber-500/10' },
-  { label: 'Stressed', value: 1, icon: AlertCircle, color: 'text-rose-600', bg: 'bg-rose-50', darkBg: 'dark:bg-rose-600/10' },
+  { label: 'Great', value: 5, icon: Heart, color: 'text-rose-500', bg: 'bg-rose-50/70', darkBg: 'dark:bg-rose-500/10' },
+  { label: 'Good', value: 4, icon: Smile, color: 'text-emerald-500', bg: 'bg-emerald-50/70', darkBg: 'dark:bg-emerald-500/10' },
+  { label: 'Okay', value: 3, icon: Meh, color: 'text-campus-blue', bg: 'bg-campus-blue/10', darkBg: 'dark:bg-campus-blue/15' },
+  { label: 'Down', value: 2, icon: Frown, color: 'text-amber-500', bg: 'bg-amber-50/70', darkBg: 'dark:bg-amber-500/10' },
+  { label: 'Stressed', value: 1, icon: AlertCircle, color: 'text-rose-600', bg: 'bg-rose-50/70', darkBg: 'dark:bg-rose-600/10' },
 ];
 
 export const MoodPicker = ({ onMoodSelect, navigate }) => {
@@ -16,8 +16,7 @@ export const MoodPicker = ({ onMoodSelect, navigate }) => {
 
   const handleSelect = (mood) => {
     setSelected(mood.label);
-    
-    // Process 1.4 Trigger Logic: Value 1 or 2 flags the system for immediate support
+
     if (mood.value <= 2) {
       setShowTrigger(true);
     } else {
@@ -33,7 +32,7 @@ export const MoodPicker = ({ onMoodSelect, navigate }) => {
         {moods.map((mood) => {
           const Icon = mood.icon;
           const isSelected = selected === mood.label;
-          
+
           return (
             <motion.button
               key={mood.label}
@@ -41,19 +40,19 @@ export const MoodPicker = ({ onMoodSelect, navigate }) => {
               whileTap={{ scale: 0.95 }}
               onClick={() => handleSelect(mood)}
               className={`flex flex-col items-center gap-2 p-4 rounded-[1.5rem] transition-all duration-300 flex-1 border ${
-                isSelected 
-                ? `${mood.bg} ${mood.darkBg} border-current shadow-lg shadow-current/10` 
-                : 'bg-transparent border-transparent hover:bg-slate-50 dark:hover:bg-slate-800/50'
+                isSelected
+                  ? `${mood.bg} ${mood.darkBg} border-current shadow-soft`
+                  : 'bg-transparent border-transparent hover:bg-muted/70 dark:hover:bg-muted/40'
               }`}
             >
-              <div className={`p-2 rounded-xl transition-colors ${isSelected ? 'bg-white dark:bg-slate-900 shadow-sm' : ''}`}>
-                <Icon 
-                  size={22} 
+              <div className={`p-2 rounded-xl transition-colors ${isSelected ? 'bg-surface dark:bg-surface-elevated shadow-sm' : ''}`}>
+                <Icon
+                  size={22}
                   strokeWidth={isSelected ? 2.5 : 2}
-                  className={isSelected ? mood.color : 'text-slate-400 dark:text-slate-600'} 
+                  className={isSelected ? mood.color : 'text-muted-foreground'}
                 />
               </div>
-              <span className={`text-[10px] font-black uppercase tracking-tighter ${isSelected ? 'text-slate-800 dark:text-white' : 'text-slate-400 dark:text-slate-600'}`}>
+              <span className={`text-[10px] font-black uppercase tracking-tighter ${isSelected ? 'text-foreground' : 'text-muted-foreground'}`}>
                 {mood.label}
               </span>
             </motion.button>
@@ -61,7 +60,6 @@ export const MoodPicker = ({ onMoodSelect, navigate }) => {
         })}
       </div>
 
-      {/* Automated Support Trigger - Aligned with Referral System (Process 4.0) */}
       <AnimatePresence>
         {showTrigger && (
           <motion.div
@@ -70,11 +68,11 @@ export const MoodPicker = ({ onMoodSelect, navigate }) => {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
-            <div className="bg-rose-50 dark:bg-rose-500/5 border border-rose-100 dark:border-rose-500/20 p-4 rounded-3xl flex items-center justify-between group cursor-pointer"
-                 onClick={() => navigate('/student/appointments')}>
+            <div className="bg-rose-50/70 dark:bg-rose-500/5 border border-rose-100/80 dark:border-rose-500/20 p-4 rounded-[2rem] flex items-center justify-between group cursor-pointer"
+              onClick={() => navigate('/student/appointments')}>
               <div className="flex items-center gap-3">
-                <div className="bg-rose-500 text-white p-2 rounded-xl">
-                  <Heart size={16} fill="white" />
+                <div className="bg-rose-500 text-primary-foreground p-2 rounded-xl">
+                  <Heart size={16} fill="currentColor" />
                 </div>
                 <div>
                   <p className="text-[11px] font-black uppercase text-rose-600 dark:text-rose-400 leading-none">Immediate Support Available</p>
