@@ -11,6 +11,9 @@ import {
 } from 'lucide-react';
 import { useSystem } from '../context/SystemContext';
 
+const MotionDiv = motion.div;
+const MotionButton = motion.button;
+
 const Assessment = () => {
   const { addNotification, user, profile } = useSystem();
   const navigate = useNavigate();
@@ -54,7 +57,25 @@ const Assessment = () => {
         addNotification(
           { name: user?.name || 'Aldrich Naag', yearLevel: profile?.yearLevel || '2nd Year' },
           'High Stress Alert Detected',
-          { risk: 'High', type: 'assessment' }
+          {
+            risk: 'High',
+            type: 'assessment',
+            category: 'assessment',
+            roles: ['student'],
+            message: 'A support check-in has been shared with the counseling team after your recent assessment.',
+          }
+        );
+
+        addNotification(
+          { name: user?.name || 'Aldrich Naag', yearLevel: profile?.yearLevel || '2nd Year' },
+          'High Stress Alert Detected',
+          {
+            risk: 'High',
+            type: 'assessment',
+            category: 'assessment',
+            roles: ['counselor', 'admin'],
+            message: `${user?.name || 'Aldrich Naag'} - ${profile?.yearLevel || '2nd Year'} triggered a high-risk wellness alert.`,
+          }
         );
       }
       setIsAnalyzing(false);
@@ -67,7 +88,7 @@ const Assessment = () => {
       <div className="max-w-3xl w-full">
         <AnimatePresence mode="wait">
           {!isFinished ? (
-            <motion.div
+            <MotionDiv
               key="form"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
@@ -93,7 +114,7 @@ const Assessment = () => {
                 </div>
               </div>
 
-              <motion.div
+              <MotionDiv
                 key={currentStep}
                 initial={{ x: 10, opacity: 0 }}
                 animate={{ x: 0, opacity: 1 }}
@@ -136,7 +157,7 @@ const Assessment = () => {
                     </button>
                   ))}
                 </div>
-              </motion.div>
+              </MotionDiv>
 
               <div className="mt-6 flex justify-between items-center border-t border-border pt-5">
                 <button
@@ -148,7 +169,7 @@ const Assessment = () => {
                 </button>
 
                 {currentStep === questions.length - 1 && answers[questions[currentStep].id] !== undefined && (
-                  <motion.button
+                  <MotionButton
                     initial={{ scale: 0.9, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
                     onClick={handleSubmit}
@@ -160,12 +181,12 @@ const Assessment = () => {
                     ) : (
                       'Finalize Assessment'
                     )}
-                  </motion.button>
+                  </MotionButton>
                 )}
               </div>
-            </motion.div>
+            </MotionDiv>
           ) : (
-            <motion.div
+            <MotionDiv
               key="success"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -192,7 +213,7 @@ const Assessment = () => {
               >
                 Return to Portal
               </button>
-            </motion.div>
+            </MotionDiv>
           )}
         </AnimatePresence>
       </div>

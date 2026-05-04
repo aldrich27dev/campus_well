@@ -7,6 +7,8 @@ import {
 import { Card, Button } from "../../components/UI";
 import { useSystem } from '../../context/SystemContext';
 
+const MotionDiv = motion.div;
+
 const AppointmentScheduler = ({ studentContext, onClose }) => {
   const { addNotification } = useSystem();
   const [selectedDate, setSelectedDate] = useState(null);
@@ -37,7 +39,25 @@ const AppointmentScheduler = ({ studentContext, onClose }) => {
       addNotification(
         { name: studentContext.name, yearLevel },
         `Appointment Scheduled: ${appointmentData.date} at ${appointmentData.time}`,
-        { type: 'appointment', yearLevel }
+        {
+          type: 'appointment',
+          category: 'appointment',
+          yearLevel,
+          roles: ['student'],
+          message: `Your counseling session has been scheduled for ${appointmentData.date} at ${appointmentData.time}.`,
+        }
+      );
+
+      addNotification(
+        { name: studentContext.name, yearLevel },
+        'Counseling Session Scheduled',
+        {
+          type: 'appointment',
+          category: 'appointment',
+          yearLevel,
+          roles: ['counselor', 'admin'],
+          message: `${studentContext.name} - ${yearLevel} was scheduled for ${appointmentData.date} at ${appointmentData.time}.`,
+        }
       );
 
       setIsProcessing(false);
@@ -160,7 +180,7 @@ const AppointmentScheduler = ({ studentContext, onClose }) => {
 
       <AnimatePresence>
         {showSuccessToast && (
-          <motion.div
+          <MotionDiv
             initial={{ y: 50, opacity: 0 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: 50, opacity: 0 }}
@@ -168,7 +188,7 @@ const AppointmentScheduler = ({ studentContext, onClose }) => {
           >
             <CheckCircle size={18} />
             <span className="text-[10px] font-black uppercase tracking-widest">Schedule Synced Successfully</span>
-          </motion.div>
+          </MotionDiv>
         )}
       </AnimatePresence>
     </div>

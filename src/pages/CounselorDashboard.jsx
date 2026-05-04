@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, AlertTriangle, CheckCircle, Bell,
@@ -6,14 +6,16 @@ import {
   Calendar, Lock, LayoutGrid, Clock
 } from 'lucide-react';
 import { Card, Button } from "../components/UI";
-import { useSystem } from '../context/SystemContext';
 import AppointmentScheduler from "../components/Counselor/AppointmentScheduler";
+import DashboardSkeleton from '../components/ui/Skeleton';
+
+const MotionDiv = motion.div;
 
 const CounselorDashboard = () => {
-  const { notifications = [] } = useSystem();
   const [selectedStudent, setSelectedStudent] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [isScheduling, setIsScheduling] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const activeNotifications = [
     { id: 1, student: "ALDRICH NAAG", yearLevel: '2nd Year', idNumber: "2022-00123", time: "2 mins ago", score: "94/100", details: "Critical anxiety levels detected. Follow-up required per Protocol 4.1.", risk: "High" },
@@ -31,6 +33,15 @@ const CounselorDashboard = () => {
     { label: 'Pending Slots', val: '04', icon: Bell, color: 'text-amber-500', bg: 'bg-amber-50/70 dark:bg-amber-500/10' },
     { label: 'Cleared Today', val: '08', icon: CheckCircle, color: 'text-campus-green', bg: 'bg-emerald-50/70 dark:bg-emerald-500/10' },
   ];
+
+  useEffect(() => {
+    const timer = setTimeout(() => setIsLoading(false), 900);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return <DashboardSkeleton title="Loading Counselor Dashboard" subtitle="Pulling student alerts and recent moods..." />;
+  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
@@ -114,7 +125,7 @@ const CounselorDashboard = () => {
 
                 <div className="divide-y divide-border bg-surface/70 dark:bg-surface-elevated/50">
                   {activeNotifications.map((notif) => (
-                    <motion.div
+                    <MotionDiv
                       key={notif.id}
                       whileHover={{ x: 4 }}
                       className="p-8 flex flex-col md:flex-row md:items-center justify-between hover:bg-muted/50 dark:hover:bg-muted/25 transition-all group gap-4"
@@ -140,7 +151,7 @@ const CounselorDashboard = () => {
                         </div>
                       </div>
                       <Button variant="primary" onClick={() => setSelectedStudent(notif)} className="shadow-soft">Review Case</Button>
-                    </motion.div>
+                    </MotionDiv>
                   ))}
                 </div>
               </Card>
@@ -168,8 +179,8 @@ const CounselorDashboard = () => {
       <AnimatePresence>
         {selectedStudent && (
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-6 backdrop-blur-sm">
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedStudent(null)} className="absolute inset-0 bg-background/60" />
-            <motion.div initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="bg-surface dark:bg-surface-elevated w-full max-w-2xl rounded-[3rem] overflow-hidden shadow-2xl relative z-10 p-10 border border-border">
+            <MotionDiv initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={() => setSelectedStudent(null)} className="absolute inset-0 bg-background/60" />
+            <MotionDiv initial={{ scale: 0.9, opacity: 0, y: 20 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.9, opacity: 0, y: 20 }} className="bg-surface dark:bg-surface-elevated w-full max-w-2xl rounded-[3rem] overflow-hidden shadow-2xl relative z-10 p-10 border border-border">
               {isScheduling ? (
                 <AppointmentScheduler
                   studentContext={selectedStudent}
@@ -228,7 +239,7 @@ const CounselorDashboard = () => {
                   </div>
                 </>
               )}
-            </motion.div>
+            </MotionDiv>
           </div>
         )}
       </AnimatePresence>

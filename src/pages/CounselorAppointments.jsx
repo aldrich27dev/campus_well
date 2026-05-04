@@ -9,7 +9,7 @@ const DAYS_AHEAD = 14;
 const formatDateKey = (date) => date.toISOString().slice(0, 10);
 
 const CounselorAppointments = () => {
-  const { appointments, updateAppointment } = useSystem();
+  const { appointments, updateAppointment, addNotification } = useSystem();
 
   const allAppointments = useMemo(() => appointments || [], [appointments]);
   const pendingAppointments = allAppointments.filter((appt) => String(appt.status).toLowerCase() === 'pending');
@@ -37,6 +37,17 @@ const CounselorAppointments = () => {
       status: 'confirmed',
       assistantState: 'Confirmed',
     });
+
+    addNotification(
+      { name: appt.student, yearLevel: appt.yearLevel },
+      'Appointment Confirmed',
+      {
+        type: 'appointment',
+        category: 'appointment',
+        roles: ['student'],
+        message: `Your counseling appointment for ${appt.date} at ${appt.time} has been confirmed.`,
+      }
+    );
   };
 
   const handleComplete = (appt) => {
@@ -44,6 +55,17 @@ const CounselorAppointments = () => {
       status: 'completed',
       assistantState: 'Completed',
     });
+
+    addNotification(
+      { name: appt.student, yearLevel: appt.yearLevel },
+      'Appointment Completed',
+      {
+        type: 'appointment',
+        category: 'appointment',
+        roles: ['student'],
+        message: `Your counseling appointment on ${appt.date} at ${appt.time} is now marked as completed.`,
+      }
+    );
   };
 
   const handleReschedule = (appt) => {
@@ -55,6 +77,17 @@ const CounselorAppointments = () => {
       status: 'pending',
       assistantState: 'Rescheduled',
     });
+
+    addNotification(
+      { name: appt.student, yearLevel: appt.yearLevel },
+      'Appointment Rescheduled',
+      {
+        type: 'appointment',
+        category: 'appointment',
+        roles: ['student'],
+        message: `Your counseling appointment has been moved to ${nextSlot.date} at ${nextSlot.time}.`,
+      }
+    );
   };
 
   return (

@@ -8,6 +8,8 @@ import {
 import { useSystem } from '../context/SystemContext';
 import { Card, Button } from '../components/UI';
 
+const MotionDiv = motion.div;
+
 const SLOT_OPTIONS = ['9:00 AM', '10:30 AM', '1:30 PM', '3:00 PM', '4:00 PM'];
 const DAILY_CAPACITY = 6;
 const BACKEND_WINDOW = 14;
@@ -16,7 +18,7 @@ const formatDateKey = (date) => date.toISOString().slice(0, 10);
 
 const Appointments = () => {
   const navigate = useNavigate();
-  const { user, profile, appointments, createAppointment } = useSystem();
+  const { user, profile, appointments, createAppointment, addNotification } = useSystem();
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [reason, setReason] = useState('');
@@ -83,23 +85,13 @@ const Appointments = () => {
     };
   }, [appointments, todayKey]);
 
-  useEffect(() => {
-    if (!selectedDate) return;
-    const occupiedSlots = bookedByDate[selectedDate] || [];
-    const firstOpen = SLOT_OPTIONS.find(slot => !occupiedSlots.includes(slot));
-    if (firstOpen && !occupiedSlots.includes(selectedTime)) {
-      setSelectedTime(firstOpen);
-    } else if (occupiedSlots.includes(selectedTime)) {
-      setSelectedTime(firstOpen || '');
-    }
-  }, [selectedDate, bookedByDate]);
-
   const selectedDateInfo = availableDates.find(item => item.key === selectedDate);
   const nextAvailableDate = availableDates.find(item => !item.isFull);
   const occupiedSlots = bookedByDate[selectedDate] || [];
   const openSlots = SLOT_OPTIONS.filter(slot => !occupiedSlots.includes(slot));
+  const activeSelectedTime = selectedTime && openSlots.includes(selectedTime) ? selectedTime : openSlots[0] || '';
   const isSelectedDateFull = selectedDateInfo?.isFull;
-  const canBook = selectedDate && selectedTime && !isSelectedDateFull && openSlots.includes(selectedTime);
+  const canBook = selectedDate && activeSelectedTime && !isSelectedDateFull && openSlots.includes(activeSelectedTime);
 
   const handleSubmit = async () => {
     if (!canBook) return;
@@ -110,12 +102,40 @@ const Appointments = () => {
       student: user?.name || 'CampusWell Student',
       yearLevel,
       date: selectedDate,
-      time: selectedTime,
+      time: activeSelectedTime,
       reason,
       status: 'pending',
       assistantState: 'Pending',
       priority: profile?.riskLevel || 'Normal',
     });
+
+    const studentName = user?.name || 'CampusWell Student';
+    const requestMessage = `Your counseling request for ${selectedDateInfo?.day}, ${selectedDateInfo?.label} at ${activeSelectedTime} is pending assistant approval.`;
+    const counselorMessage = `${studentName} - ${yearLevel} requested counseling for ${selectedDateInfo?.day}, ${selectedDateInfo?.label} at ${activeSelectedTime}.`;
+
+    addNotification(
+      { name: studentName, yearLevel },
+      'Appointment Submitted',
+      {
+        type: 'appointment',
+        category: 'appointment',
+        roles: ['student'],
+        message: requestMessage,
+        yearLevel,
+      }
+    );
+
+    addNotification(
+      { name: studentName, yearLevel },
+      'New Counseling Request',
+      {
+        type: 'appointment',
+        category: 'appointment',
+        roles: ['counselor', 'admin'],
+        message: counselorMessage,
+        yearLevel,
+      }
+    );
 
     setSubmitting(false);
     setSubmitted(true);
@@ -143,13 +163,13 @@ const Appointments = () => {
 
         <AnimatePresence mode="wait">
           {!submitted ? (
-            <motion.div
-              key="booking"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-surface dark:bg-surface-elevated rounded-[2.5rem] shadow-2xl border border-border overflow-hidden"
-            >
+              <MotionDiv
+                key="booking"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                className="bg-surface dark:bg-surface-elevated rounded-[2.5rem] shadow-2xl border border-border overflow-hidden"
+              >
               <div className="grid grid-cols-1 lg:grid-cols-5 gap-0">
                 <div className="lg:col-span-3 p-6 md:p-8 space-y-6">
                   <div className="flex items-center justify-between">
@@ -243,7 +263,7 @@ const Appointments = () => {
                           disabled={isBlocked || !selectedDate}
                           onClick={() => setSelectedTime(slot)}
                           className={`rounded-2xl border px-3 py-4 text-left transition-all ${
-                            selectedTime === slot
+                            activeSelectedTime === slot
                               ? 'border-campus-blue bg-campus-blue text-primary-foreground shadow-soft'
                               : isBlocked || !selectedDate
                                 ? 'border-border bg-muted/60 dark:bg-muted/30 text-muted-foreground opacity-60'
@@ -288,7 +308,7 @@ const Appointments = () => {
                   </p>
                 </div>
               </div>
-            </motion.div>
+            </MotionDiv>
           ) : (
             <motion.div
               key="success"

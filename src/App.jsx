@@ -21,7 +21,7 @@ import AdminLogs from './pages/AdminLogs'; // <--- NEW: Create this file for Pro
 
 // Layout includes the persistent Navbar for authenticated processes (Process 0.0)
 const LayoutWithNavbar = () => (
-  <div className="min-h-screen bg-background">
+  <div className="min-h-screen bg-background overflow-x-clip">
     <Navbar />
     <Outlet />
   </div>

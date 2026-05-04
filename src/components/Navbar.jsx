@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Menu, X, LayoutDashboard, ClipboardCheck,
   Calendar, BookOpen, Moon, Sun, LogOut, TrendingUp, Shield,
-  Users, Activity, UserCircle2, Settings, ChevronDown
+  Users, Activity, UserCircle2, Settings
 } from 'lucide-react';
 import { useSystem } from '../context/SystemContext';
 import NotificationCenter from './NotificationCenter';
@@ -24,8 +24,6 @@ const Navbar = () => {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
-
-  useEffect(() => setIsOpen(false), [location.pathname]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -50,29 +48,24 @@ const Navbar = () => {
 
   const filteredNav = navItems.filter(item => item.roles.includes(userRole));
   const displayName = user?.name || 'Account';
-  const initials = displayName
-    .split(' ')
-    .map(part => part[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
 
   const goHome = () => navigate(userRole === 'admin' ? '/admin/dashboard' : userRole === 'counselor' ? '/counselor/dashboard' : '/student/dashboard');
+  const MotionDiv = motion.div;
 
   return (
-    <nav className={`sticky top-0 z-50 transition-all duration-300 h-16 md:h-24 flex items-center ${
+    <nav className={`sticky top-0 z-50 transition-all duration-300 h-16 md:h-24 flex items-center overflow-x-clip ${
       scrolled || isOpen || profileOpen
         ? 'bg-surface/90 dark:bg-surface-elevated/90 backdrop-blur-xl border-b border-border'
         : 'bg-transparent border-b border-transparent'
     }`}>
-      <div className="max-w-7xl mx-auto px-4 md:px-6 w-full flex justify-between items-center">
-        <div className="flex items-center gap-2 md:gap-3 cursor-pointer group" onClick={goHome}>
+      <div className="max-w-7xl mx-auto px-3 sm:px-4 md:px-6 w-full flex justify-between items-center gap-2 min-w-0">
+        <div className="flex items-center gap-2 md:gap-3 cursor-pointer group min-w-0" onClick={goHome}>
           <div className="h-9 w-9 md:h-11 md:w-11 bg-surface dark:bg-surface-elevated rounded-xl md:rounded-2xl flex items-center justify-center text-campus-blue font-black shadow-surface overflow-hidden border border-border/70">
             {userRole === 'admin' || userRole === 'counselor' ? <Shield size={18} /> : <img src={Logo} alt="Campus Well" className="h-full w-full object-cover" />}
           </div>
-          <div className="flex flex-col">
-            <span className="font-black text-lg md:text-xl tracking-tighter text-foreground leading-none">CampusWell</span>
-            <span className="text-[8px] md:text-[9px] font-black text-campus-green uppercase tracking-[0.2em]">
+          <div className="hidden sm:flex flex-col min-w-0">
+            <span className="font-black text-lg md:text-xl tracking-tighter text-foreground leading-none whitespace-nowrap">CampusWell</span>
+            <span className="text-[8px] md:text-[9px] font-black text-campus-green uppercase tracking-[0.2em] whitespace-nowrap">
               {userRole.toUpperCase()} PORTAL
             </span>
           </div>
@@ -96,7 +89,7 @@ const Navbar = () => {
           ))}
         </div>
 
-        <div className="flex items-center gap-1 md:gap-3">
+        <div className="flex items-center gap-1 md:gap-3 shrink-0">
           <NotificationCenter />
 
           <button
@@ -106,15 +99,12 @@ const Navbar = () => {
             {darkMode ? <Sun size={18} fill="currentColor" /> : <Moon size={18} fill="currentColor" />}
           </button>
 
-          <div className="relative" ref={profileRef}>
+          <div className="relative shrink-0 hidden lg:block" ref={profileRef}>
             <button
               onClick={() => setProfileOpen(prev => !prev)}
-              className="flex items-center gap-2 p-2.5 md:p-3 rounded-xl md:rounded-2xl bg-surface dark:bg-surface-elevated border border-border shadow-surface"
+              className="p-2.5 md:p-3 rounded-xl md:rounded-2xl bg-surface dark:bg-surface-elevated border border-border text-muted-foreground shadow-surface"
             >
-              <div className="h-7 w-7 rounded-xl bg-campus-blue text-primary-foreground flex items-center justify-center text-[10px] font-black">
-                {initials}
-              </div>
-              <ChevronDown size={14} className="text-muted-foreground hidden md:block" />
+              <UserCircle2 size={18} className="text-campus-blue dark:text-campus-green" />
             </button>
 
             <AnimatePresence>
@@ -123,7 +113,7 @@ const Navbar = () => {
                   initial={{ opacity: 0, y: 10, scale: 0.96 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
                   exit={{ opacity: 0, y: 10, scale: 0.96 }}
-                  className="absolute right-0 mt-3 w-[18rem] rounded-[2rem] bg-surface dark:bg-surface-elevated border border-border shadow-2xl overflow-hidden z-[70]"
+                  className="absolute right-0 mt-3 w-[16rem] sm:w-[18rem] max-w-[calc(100vw-1rem)] rounded-[2rem] bg-surface dark:bg-surface-elevated border border-border shadow-2xl overflow-hidden z-[70]"
                 >
                   <div className="p-4 border-b border-border bg-muted/30 dark:bg-muted/20">
                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Signed in as</p>
@@ -160,7 +150,10 @@ const Navbar = () => {
 
           <button
             className="lg:hidden p-2.5 rounded-xl bg-surface dark:bg-surface-elevated border border-border text-campus-blue dark:text-primary-foreground"
-            onClick={() => setIsOpen(!isOpen)}
+            onClick={() => {
+              setProfileOpen(false);
+              setIsOpen(prev => !prev);
+            }}
           >
             {isOpen ? <X size={22} /> : <Menu size={22} />}
           </button>
@@ -169,18 +162,32 @@ const Navbar = () => {
 
       <AnimatePresence>
         {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="absolute top-16 left-0 right-0 bg-surface dark:bg-surface-elevated border-b border-border lg:hidden shadow-2xl overflow-hidden z-[49]"
-          >
-            <div className="p-6 space-y-1">
+            <MotionDiv
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="absolute top-16 left-0 right-0 bg-surface dark:bg-surface-elevated border-b border-border lg:hidden shadow-2xl overflow-hidden z-[49] max-w-full"
+            >
+            <div className="p-4 sm:p-6 space-y-1 max-w-full overflow-x-clip">
+              <div className="mb-3 rounded-[1.5rem] border border-border bg-muted/30 dark:bg-muted/20 p-4 flex items-center gap-3">
+                <div className="h-11 w-11 rounded-2xl bg-campus-blue/10 text-campus-blue dark:text-campus-green flex items-center justify-center shrink-0">
+                  <UserCircle2 size={22} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">Profile</p>
+                  <p className="text-sm font-black text-foreground truncate">{displayName}</p>
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-campus-green mt-1">{userRole} account</p>
+                </div>
+              </div>
+
               {filteredNav.map((item) => (
                 <button
                   key={item.name}
-                  onClick={() => navigate(item.path)}
-                  className={`w-full text-left px-6 py-4 font-black uppercase tracking-widest text-[10px] flex items-center gap-4 rounded-xl ${
+                  onClick={() => {
+                    setIsOpen(false);
+                    navigate(item.path);
+                  }}
+                  className={`w-full text-left px-4 sm:px-6 py-4 font-black uppercase tracking-widest text-[10px] flex items-center gap-4 rounded-xl ${
                     location.pathname === item.path
                       ? 'bg-muted dark:bg-muted text-campus-blue dark:text-primary-foreground'
                       : 'text-muted-foreground'
@@ -189,14 +196,14 @@ const Navbar = () => {
                   <item.icon size={18} /> {item.name}
                 </button>
               ))}
-              <div className="h-[1px] bg-border my-4 mx-6" />
+              <div className="h-[1px] bg-border my-4 mx-2 sm:mx-6" />
               <button
                 onClick={() => {
                   setIsOpen(false);
                   setProfileOpen(false);
                   navigate('/settings');
                 }}
-                className="w-full text-left px-6 py-4 font-black uppercase tracking-widest text-[10px] text-campus-blue flex items-center gap-4"
+                className="w-full text-left px-4 sm:px-6 py-4 font-black tracking-widest text-[10px] text-campus-blue flex items-center gap-4 rounded-xl"
               >
                 <UserCircle2 size={18} /> Account Settings
               </button>
@@ -207,12 +214,12 @@ const Navbar = () => {
                   logout();
                   navigate('/');
                 }}
-                className="w-full text-left px-6 py-4 font-black uppercase tracking-widest text-[10px] text-rose-500 flex items-center gap-4"
+                className="w-full text-left px-4 sm:px-6 py-4 font-black tracking-widest text-[10px] text-rose-500 flex items-center gap-4 rounded-xl"
               >
                 <LogOut size={18} /> Logout
               </button>
             </div>
-          </motion.div>
+            </MotionDiv>
         )}
       </AnimatePresence>
     </nav>

@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect } from 'react';
 
 const SystemContext = createContext(null);
@@ -25,17 +26,11 @@ export const SystemProvider = ({ children }) => {
   // Fallback to 'student' if nothing is found
   const [userRole, setUserRole] = useState(localStorage.getItem('user_role') || 'student');
 
-  // 2. SYNC CHECK: Force state to match URL on mount (helps during development)
-  useEffect(() => {
-    const path = window.location.pathname;
-    if (path.includes('/student') && userRole !== 'student') {
-      updateRole('student');
-    } else if (path.includes('/counselor') && userRole !== 'counselor') {
-      updateRole('counselor');
-    } else if (path.includes('/admin') && userRole !== 'admin') {
-      updateRole('admin');
-    }
-  }, []);
+  // Helper to update both state and localStorage
+  const updateRole = (role) => {
+    setUserRole(role);
+    localStorage.setItem('user_role', role);
+  };
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', darkMode);
@@ -54,12 +49,6 @@ export const SystemProvider = ({ children }) => {
 
   const toggleDarkMode = () => setDarkMode(prev => !prev);
 
-  // Helper to update both state and localStorage
-  const updateRole = (role) => {
-    setUserRole(role);
-    localStorage.setItem('user_role', role);
-  };
-
   const login = (userData, role) => {
     setUser({ ...userData, role });
     updateRole(role);
@@ -77,13 +66,17 @@ export const SystemProvider = ({ children }) => {
   const addNotification = (studentOrMeta, status, meta = {}) => {
     const studentName = typeof studentOrMeta === 'string' ? studentOrMeta : studentOrMeta?.name || 'Student';
     const yearLevel = typeof studentOrMeta === 'object' ? studentOrMeta?.yearLevel : meta.yearLevel;
+    const roles = Array.isArray(meta.roles) && meta.roles.length > 0 ? meta.roles : ['student', 'counselor', 'admin'];
     const newNotif = {
       id: Date.now(),
       student: studentName,
       status: status,
+      message: meta.message || status,
       time: "Just now",
       read: false,
       yearLevel,
+      roles,
+      category: meta.category || meta.type || 'system',
       risk: meta.risk || (typeof status === 'string' && status.toLowerCase().includes('high') ? 'High' : undefined),
       type: meta.type || 'system'
     };
