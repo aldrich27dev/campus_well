@@ -4,8 +4,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Bell, BellRing, FileSearch, CheckCircle2, X, CalendarClock, ShieldAlert, ClipboardList } from 'lucide-react';
 
 const NotificationCenter = () => {
-  const { notifications, user } = useSystem();
+  const { notifications, user, markNotificationRead, clearNotifications } = useSystem();
   const [isOpen, setIsOpen] = useState(false);
+  const [activeFilter, setActiveFilter] = useState('all');
   const dropdownRef = useRef(null);
   const role = user?.role?.toLowerCase() || 'student';
   const visibleNotifications = useMemo(() => {
@@ -14,6 +15,11 @@ const NotificationCenter = () => {
       return audience.includes('all') || audience.includes(role);
     });
   }, [notifications, role]);
+  const filteredNotifications = useMemo(() => {
+    if (activeFilter === 'all') return visibleNotifications;
+    if (activeFilter === 'unread') return visibleNotifications.filter((n) => !n.read);
+    return visibleNotifications.filter((n) => n.type === activeFilter || n.category === activeFilter);
+  }, [activeFilter, visibleNotifications]);
   const unreadCount = visibleNotifications.filter(n => !n.read).length;
 
   useEffect(() => {
@@ -82,6 +88,13 @@ const NotificationCenter = () => {
     return n.message || n.status || `Triggered ${n.type || 'system'} alert.`;
   };
 
+  const filterOptions = [
+    { key: 'all', label: 'All' },
+    { key: 'unread', label: 'Unread' },
+    { key: 'appointment', label: 'Appointments' },
+    { key: 'assessment', label: 'Alerts' },
+  ];
+
   return (
     <div className="relative" ref={dropdownRef}>
       <MotionButton
@@ -118,27 +131,40 @@ const NotificationCenter = () => {
                 exit={{ opacity: 0, y: 50, scale: 0.95 }}
               className="fixed md:absolute bottom-0 md:bottom-auto left-0 md:left-auto right-0 md:mt-4 w-full md:w-[21rem] bg-surface dark:bg-surface-elevated rounded-t-[2.5rem] md:rounded-[2.5rem] shadow-2xl border-t md:border border-border z-50 overflow-hidden"
               >
-              <div className="p-6 border-b border-border/60 bg-muted/40 dark:bg-muted/20 flex justify-between items-center">
+              <div className="p-6 border-b border-border/60 bg-muted/40 dark:bg-muted/20 flex flex-col gap-4">
                 <div>
                   <h3 className="font-black text-campus-blue dark:text-campus-green text-[11px] uppercase tracking-[0.2em]">
                     {currentConfig.label}
                   </h3>
                   <p className="text-[9px] font-bold text-muted-foreground uppercase mt-0.5">{currentConfig.sub}</p>
                 </div>
-                <div className="flex items-center gap-3">
+                <div className="flex flex-wrap items-center gap-2">
+                  {filterOptions.map((option) => (
+                    <button
+                      key={option.key}
+                      onClick={() => setActiveFilter(option.key)}
+                      className={`px-3 py-1.5 rounded-full text-[9px] font-black uppercase tracking-widest border transition-colors ${
+                        activeFilter === option.key
+                          ? 'bg-campus-blue text-primary-foreground border-campus-blue'
+                          : 'bg-surface dark:bg-surface-elevated border-border text-muted-foreground'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
                   {unreadCount > 0 && (
                     <span className="text-[9px] font-black px-2 py-0.5 bg-rose-100 dark:bg-rose-500/10 text-rose-600 rounded-full">
                       {unreadCount} NEW
                     </span>
                   )}
-                  <button onClick={() => setIsOpen(false)} className="md:hidden p-2 text-muted-foreground hover:text-foreground">
+                  <button onClick={() => setIsOpen(false)} className="md:hidden p-2 text-muted-foreground hover:text-foreground ml-auto">
                     <X size={18} />
                   </button>
                 </div>
               </div>
 
               <div className="max-h-[60vh] md:max-h-[400px] overflow-y-auto scrollbar-hide pb-safe">
-                {visibleNotifications.length === 0 ? (
+                {filteredNotifications.length === 0 ? (
                   <div className="p-10 text-center space-y-3">
                     <div className="w-12 h-12 bg-muted dark:bg-muted rounded-2xl flex items-center justify-center mx-auto">
                       <CheckCircle2 size={20} className="text-muted-foreground/50" />
@@ -146,13 +172,16 @@ const NotificationCenter = () => {
                     <p className="text-[10px] font-black uppercase text-muted-foreground tracking-widest">No pending {role} actions</p>
                   </div>
                 ) : (
-                  visibleNotifications.map((n) => {
+                  filteredNotifications.map((n) => {
                     const badge = getBadge(n);
                     const BadgeIcon = badge.icon;
                     return (
                     <div
                       key={n.id}
-                      className="p-5 border-b border-border/60 hover:bg-muted/50 dark:hover:bg-muted/25 transition-colors cursor-pointer group active:bg-muted/80 dark:active:bg-muted/40"
+                      onClick={() => markNotificationRead(n.id)}
+                      className={`p-5 border-b border-border/60 hover:bg-muted/50 dark:hover:bg-muted/25 transition-colors cursor-pointer group active:bg-muted/80 dark:active:bg-muted/40 ${
+                        n.read ? 'opacity-70' : ''
+                      }`}
                     >
                       <div className="flex justify-between items-start mb-2">
                         <div className="flex items-center gap-2">
@@ -191,7 +220,13 @@ const NotificationCenter = () => {
               </div>
 
               <div className="p-4 bg-muted/40 dark:bg-muted/20 text-center pb-8 md:pb-4">
-                <button className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.3em] hover:text-campus-blue transition-colors">
+                <button
+                  onClick={() => {
+                    clearNotifications(role);
+                    setActiveFilter('all');
+                  }}
+                  className="text-[9px] font-black text-muted-foreground uppercase tracking-[0.3em] hover:text-campus-blue transition-colors"
+                >
                   Clear All {role} Logs
                 </button>
               </div>

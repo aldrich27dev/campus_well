@@ -1,39 +1,43 @@
+/* eslint-disable no-unused-vars */
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
-import { Shield, Mail, MessageSquare, AlertCircle } from 'lucide-react';
+import { Shield, Mail, MessageSquare, AlertCircle, KeyRound, Eye, EyeOff } from 'lucide-react';
 import { useSystem } from '../context/SystemContext';
 import { Button } from '../components/UI';
 import Logo from '../assets/mainlogo.png';
 
 const Login = () => {
   const [role, setRole] = useState('student');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState(false);
+  const [email, setEmail] = useState(() => localStorage.getItem('remembered_email') || '');
+  const [password, setPassword] = useState(() => localStorage.getItem('remembered_password') || '');
+  const [error, setError] = useState('');
+
+  // New Feature Tracking States
+  const [rememberMe, setRememberMe] = useState(() => Boolean(localStorage.getItem('remembered_email')));
+  const [showMfaForm, setShowMfaForm] = useState(false);
+  const [mfaCode, setMfaCode] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
   const navigate = useNavigate();
   const controls = useAnimation();
   const { login } = useSystem();
-  const [showRoleModal, setShowRoleModal] = useState(false);
+  const [showRoleModal, setShowRoleModal] = useState(() => !localStorage.getItem('has_seen_role_modal'));
   const [showRegisterModal, setShowRegisterModal] = useState(false);
   const [acceptTerms, setAcceptTerms] = useState(false);
 
-  const MOCK_USERS = {
-    student: [
-      { email: 'admin@co', password: 'admin', name: 'Aldrich' },
-      { email: 'aldrich@grc.edu.ph', password: 'password123', name: 'Aldrich' },
-      { email: 'jether@grc.edu.ph', password: 'password123', name: 'Jether' },
-      { email: 'rechelleann@grc.edu.ph', password: 'password123', name: 'Rechelle Ann' }
-    ],
-    counselor: { email: 'counselor@grc.edu.ph', password: 'admin123', name: 'Ms. Jane' },
-    admin: { email: 'admin@grc.edu.ph', password: 'root', name: 'SuperAdmin' }
-  };
+  const syncLogin = (payload, nextRole) => {
+    const profile = payload?.profile || payload?.user || payload || null;
+    const account = profile && payload?.user
+      ? { ...payload.user, ...profile }
+      : profile;
 
-  useEffect(() => {
-    const hasSeenModal = localStorage.getItem('has_seen_role_modal');
-    if (!hasSeenModal) setShowRoleModal(true);
-  }, []);
+    login({
+      ...account,
+      name: account?.name || `${profile?.firstName || profile?.first_name || ''} ${profile?.lastName || profile?.last_name || ''}`.trim(),
+      profile,
+    }, nextRole);
+  };
 
   const triggerShake = async () => {
     await controls.start({ x: [-10, 10, -10, 10, 0], transition: { duration: 0.4 } });
@@ -41,24 +45,83 @@ const Login = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(false);
+    setError('');
 
-    let authenticatedUser = null;
-
-    if (role === 'student') {
-      authenticatedUser = MOCK_USERS.student.find((u) => u.email === email && u.password === password);
-    } else {
-      const userRoleData = MOCK_USERS[role];
-      if (email === userRoleData.email && password === userRoleData.password) {
-        authenticatedUser = userRoleData;
-      }
+    if (!email.trim() || !password) {
+      setError("Please enter both username and password.");
+      triggerShake();
+      return;
     }
 
-    if (authenticatedUser) {
-      login({ email: authenticatedUser.email, name: authenticatedUser.name }, role);
-      navigate(`/${role}/dashboard`);
-    } else {
-      setError(true);
+    try {
+      const response = await fetch('http://localhost:8080/campuswell-api/login.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email.trim(), password, role }),
+      });
+
+      const data = await response.json();
+
+      if (data.status === 'success') {
+        // Save both email and password if Remember Me is checked
+        if (rememberMe) {
+          localStorage.setItem('remembered_email', email.trim());
+          localStorage.setItem('remembered_password', password);
+        } else {
+          localStorage.removeItem('remembered_email');
+          localStorage.removeItem('remembered_password');
+        }
+
+        // Conditional router verification step transition routing interception matrix rules mapping
+        if (data.requires_mfa) {
+          setShowMfaForm(true);
+        } else {
+          syncLogin(data, role);
+          navigate(`/${role}/dashboard`);
+        }
+      } else {
+        setError(data.message || "Invalid username or password.");
+        triggerShake();
+      }
+    } catch {
+      setError("Database connection failed. Please check your XAMPP status.");
+      triggerShake();
+    }
+  };
+
+  // Dedicated secondary dispatch verification validation handler action rule
+  const handleVerifyMfa = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    if (!mfaCode.trim()) {
+      setError("Please provide your identity token verification sequence code items.");
+      triggerShake();
+      return;
+    }
+
+    try {
+      const response = await fetch('http://localhost:8080/campuswell-api/verify-mfa.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: email.trim(), code: mfaCode.trim(), role }),
+      });
+
+      const data = await response.json();
+
+      if (data.status === 'success') {
+        syncLogin(data, role);
+        navigate(`/${role}/dashboard`);
+      } else {
+        setError(data.message || "Verification code validation failure items found.");
+        triggerShake();
+      }
+    } catch {
+      setError("MFA endpoint tracking network request connection exception.");
       triggerShake();
     }
   };
@@ -93,7 +156,10 @@ const Login = () => {
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => setShowRoleModal(false)}
+                onClick={() => {
+                  localStorage.setItem('has_seen_role_modal', 'true');
+                  setShowRoleModal(false);
+                }}
                 className="w-full py-3.5 bg-campus-blue text-primary-foreground rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all shadow-soft"
               >
                 Continue
@@ -119,79 +185,193 @@ const Login = () => {
         </div>
 
         <motion.div animate={controls} className="flex flex-col justify-center p-8 md:p-12">
-          <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
-            <div className="space-y-2">
-              <p className="text-center md:text-left text-[9px] md:text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] md:ml-1">Select Your Role</p>
-              <div className="flex gap-1 p-1 bg-muted/60 dark:bg-muted/30 rounded-2xl border border-border">
-                {['student', 'counselor', 'admin'].map((r) => (
-                  <motion.button
-                    key={r}
+          <AnimatePresence mode="wait">
+            {!showMfaForm ? (
+              <motion.form 
+                key="login-form"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 10 }}
+                onSubmit={handleSubmit} 
+                className="space-y-4 md:space-y-6"
+              >
+                <div className="space-y-2">
+                  <p className="text-center md:text-left text-[9px] md:text-[10px] font-black text-muted-foreground uppercase tracking-[0.2em] md:ml-1">Select Your Role</p>
+                  <div className="flex gap-1 p-1 bg-muted/60 dark:bg-muted/30 rounded-2xl border border-border">
+                    {['student', 'counselor', 'admin'].map((r) => (
+                      <motion.button
+                        key={r}
+                        type="button"
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => { setRole(r); setError(''); }}
+                        className={`flex-1 py-2.5 text-[9px] md:text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 ${
+                          role === r ? 'bg-surface dark:bg-surface-elevated shadow-sm text-campus-blue dark:text-campus-green' : 'text-muted-foreground'
+                        }`}
+                      >
+                        {r}
+                      </motion.button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-3 md:space-y-4">
+                  <AnimatePresence>
+                    {error && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="flex items-center gap-2 p-3 bg-rose-50/70 dark:bg-rose-500/10 border border-rose-100/80 dark:border-rose-500/20 rounded-xl"
+                      >
+                        <AlertCircle size={14} className="text-rose-500 shrink-0" />
+                        <p className="text-[10px] font-black text-rose-600 uppercase tracking-tighter">{error}</p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <div>
+                    <label className="block text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 ml-1">Institutional Email</label>
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      required
+                      placeholder="name@grc.edu.ph"
+                      className={`w-full px-5 py-3.5 md:py-4 bg-muted/30 dark:bg-muted/20 border rounded-2xl outline-none text-sm text-foreground transition-all ${
+                        error ? 'border-rose-500' : 'border-border focus:border-campus-blue'
+                      }`}
+                    />
+                  </div>
+                
+                  <div>
+                    <label className="block text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 ml-1">Password</label>
+                    <div className="relative flex items-center">
+                      <input
+                        type={showPassword ? "text" : "password"}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        placeholder="••••••••"
+                        className={`w-full pl-5 pr-12 py-3.5 md:py-4 bg-muted/30 dark:bg-muted/20 border rounded-2xl outline-none text-sm text-foreground transition-all ${
+                          error ? 'border-rose-500' : 'border-border focus:border-campus-blue'
+                        }`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPassword(!showPassword)}
+                        className="absolute right-4 text-muted-foreground hover:text-foreground transition-colors p-1 focus:outline-none"
+                        aria-label={showPassword ? "Hide password" : "Show password"}
+                      >
+                        {showPassword ? (
+                          <EyeOff size={18} />
+                        ) : (
+                          <Eye size={18} />
+                        )}
+                      </button>
+                    </div>
+                  </div> 
+
+                </div>
+
+                <div className="flex items-center justify-between px-1">
+                  <label className="flex items-center gap-2 cursor-pointer select-none">
+                    <input 
+                      type="checkbox"
+                      checked={rememberMe}
+                      onChange={(e) => setRememberMe(e.target.checked)}
+                      className="h-3.5 w-3.5 rounded border-border text-campus-blue focus:ring-campus-blue bg-muted/30"
+                    />
+                    <span className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground">Remember Me</span>
+                  </label>
+
+                  <button
                     type="button"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => { setRole(r); setError(false); }}
-                    className={`flex-1 py-2.5 text-[9px] md:text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 ${
-                      role === r ? 'bg-surface dark:bg-surface-elevated shadow-sm text-campus-blue dark:text-campus-green' : 'text-muted-foreground'
-                    }`}
+                    onClick={() => navigate('/forgot-password')}
+                    className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-campus-blue dark:hover:text-campus-green transition-colors"
                   >
-                    {r}
-                  </motion.button>
-                ))}
-              </div>
-            </div>
+                    Forgot Password?
+                  </button>
+                </div>
 
-            <div className="space-y-3 md:space-y-4">
-              <AnimatePresence>
-                {error && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="flex items-center gap-2 p-3 bg-rose-50/70 dark:bg-rose-500/10 border border-rose-100/80 dark:border-rose-500/20 rounded-xl"
+                <motion.button
+                  type="submit"
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full bg-campus-blue text-primary-foreground font-black text-[11px] md:text-xs uppercase tracking-[0.2em] py-4 md:py-5 rounded-2xl shadow-soft transition-all"
+                >
+                  Enter Portal
+                </motion.button>
+              </motion.form>
+            ) : (
+              <motion.form 
+                key="mfa-form"
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                onSubmit={handleVerifyMfa} 
+                className="space-y-4 md:space-y-6"
+              >
+                <div className="text-center md:text-left space-y-1 md:ml-1">
+                  <div className="h-9 w-9 bg-campus-blue/10 text-campus-blue rounded-xl flex items-center justify-center mb-2 mx-auto md:mx-0">
+                    <KeyRound size={18} />
+                  </div>
+                  <h2 className="text-lg font-black uppercase tracking-tighter text-foreground">Verification Code Required</h2>
+                  <p className="text-[10px] text-muted-foreground tracking-wide leading-relaxed">
+                    An operational verification checkpoint token challenge has been broadcasted to <span className="text-foreground font-bold">{email}</span>. Please verify right away.
+                  </p>
+                </div>
+
+                <div className="space-y-3">
+                  <AnimatePresence>
+                    {error && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="flex items-center gap-2 p-3 bg-rose-50/70 dark:bg-rose-500/10 border border-rose-100/80 dark:border-rose-500/20 rounded-xl"
+                      >
+                        <AlertCircle size={14} className="text-rose-500 shrink-0" />
+                        <p className="text-[10px] font-black text-rose-600 uppercase tracking-tighter">{error}</p>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
+                  <div>
+                    <label className="block text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 ml-1">MFA Security Token</label>
+                    <input
+                      type="text"
+                      maxLength={6}
+                      value={mfaCode}
+                      onChange={(e) => setMfaCode(e.target.value.replace(/\D/g, ''))}
+                      required
+                      placeholder="123456"
+                      className="w-full px-5 py-3.5 md:py-4 bg-muted/30 dark:bg-muted/20 border border-border focus:border-campus-blue text-center tracking-[0.5em] font-black text-base rounded-2xl outline-none text-foreground transition-all"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between px-1">
+                  <button
+                    type="button"
+                    onClick={() => { setShowMfaForm(false); setError(''); setMfaCode(''); }}
+                    className="text-[9px] md:text-[10px] font-black uppercase tracking-widest text-muted-foreground hover:text-foreground transition-colors"
                   >
-                    <AlertCircle size={14} className="text-rose-500" />
-                    <p className="text-[10px] font-black text-rose-600 uppercase tracking-tighter">Invalid {role} Credentials</p>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+                    ← Back to Login
+                  </button>
+                </div>
 
-              <div>
-                <label className="block text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 ml-1">Institutional Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  placeholder="name@grc.edu.ph"
-                  className={`w-full px-5 py-3.5 md:py-4 bg-muted/30 dark:bg-muted/20 border rounded-2xl outline-none text-sm text-foreground transition-all ${
-                    error ? 'border-rose-500' : 'border-border focus:border-campus-blue'
-                  }`}
-                />
-              </div>
-              <div>
-                <label className="block text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 ml-1">Password</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  required
-                  placeholder="••••••••"
-                  className={`w-full px-5 py-3.5 md:py-4 bg-muted/30 dark:bg-muted/20 border rounded-2xl outline-none text-sm text-foreground transition-all ${
-                    error ? 'border-rose-500' : 'border-border focus:border-campus-blue'
-                  }`}
-                />
-              </div>
-            </div>
-
-            <motion.button
-              type="submit"
-              whileHover={{ scale: 1.01 }}
-              whileTap={{ scale: 0.98 }}
-              className="w-full bg-campus-blue text-primary-foreground font-black text-[11px] md:text-xs uppercase tracking-[0.2em] py-4 md:py-5 rounded-2xl shadow-soft transition-all"
-            >
-              Enter Portal
-            </motion.button>
-          </form>
+                <motion.button
+                  type="submit"
+                  whileHover={{ scale: 1.01 }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full bg-campus-blue text-primary-foreground font-black text-[11px] md:text-xs uppercase tracking-[0.2em] py-4 md:py-5 rounded-2xl shadow-soft transition-all"
+                >
+                  Verify Access Code
+                </motion.button>
+              </motion.form>
+            )}
+          </AnimatePresence>
 
           <div className="mt-8 text-center md:text-left space-y-3">
             <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest md:ml-1">
@@ -206,7 +386,7 @@ const Login = () => {
                 <Mail size={10} /> Create Account / Register
               </button>
               <span className="w-1 h-1 rounded-full bg-border" />
-              <a href="https://www.facebook.com/OfficialGRC" className="flex items-center gap-1.5 text-[9px] md:text-[10px] font-black text-campus-blue dark:text-campus-green uppercase tracking-widest hover:underline transition-all">
+              <a href="https://www.facebook.com/OfficialGRC" target="_blank" rel="noreferrer" className="flex items-center gap-1.5 text-[9px] md:text-[10px] font-black text-campus-blue dark:text-campus-green uppercase tracking-widest hover:underline transition-all">
                 <MessageSquare size={10} /> Contact GRC
               </a>
             </div>

@@ -1,66 +1,103 @@
-# 🛡️ CampusWell
-**Student Mental Health & Wellness Management System** *The official wellness portal designed for Global Reciprocal Colleges (GRC).*
+﻿# CampusWell
+Student Mental Health and Wellness Management System for Global Reciprocal Colleges (GRC).
 
 [![Built with React](https://img.shields.io/badge/Built%20with-React-61DAFB?style=flat-square&logo=react)](https://reactjs.org/)
 [![Vite](https://img.shields.io/badge/Powered%20by-Vite-646CFF?style=flat-square&logo=vite)](https://vitejs.dev/)
 [![Tailwind CSS](https://img.shields.io/badge/Styled%20with-Tailwind-38B2AC?style=flat-square&logo=tailwind-css)](https://tailwindcss.com/)
 [![Deployment](https://img.shields.io/badge/Deployment-GitHub%20Pages-181717?style=flat-square&logo=github)](https://pages.github.com/)
 
----
+## Overview
+CampusWell is a frontend-based wellness portal that connects students, counselors, and administrators through a role-based interface. It focuses on common campus support flows such as authentication, wellness checks, appointment booking, notifications, reporting, analytics, and audit logging.
 
-## 🚀 Overview
-**CampusWell** is a specialized management system built to streamline mental health support within the campus. It bridges the gap between students, counselors, and administrators through an intuitive, "night-mode friendly" Bento-style interface.
+Recent additions include:
+- MFA verification during login when required by the backend
+- A forgot-password flow with email, OTP, reset, and success steps
+- A registration privacy notice modal
+- A dedicated student action center for appointment follow-up
+- Role-aware notifications and appointment status updates
+- Session timeout and logout handling
+- Profile syncing from the local backend when available
 
-The system is architected based on a strict **Functional Decomposition Diagram (FDD)** to ensure every feature maps directly to campus wellness requirements.
+## Tech Stack
+- Frontend: React 19
+- Build Tool: Vite
+- Styling: Tailwind CSS
+- Animation: Framer Motion
+- Routing: React Router with `HashRouter`
+- State Management: Context API
+- Icons: Lucide React
 
-## 🛠️ Tech Stack
-- **Frontend:** React 18 (Vite)
-- **Styling:** Tailwind CSS (Minimalist / Bento Aesthetics)
-- **Animations:** Framer Motion (Shake logic, Modal transitions)
-- **Routing:** React Router (HashRouter for GH Pages compatibility)
-- **State Management:** Context API (SystemProvider)
-- **Icons:** Lucide React
+## Core Features
 
----
+### Student Portal
+- Mood tracking
+- Wellness assessment questionnaire
+- Counseling appointment booking with date and slot capacity checks
+- Wellness resource library
+- Appointment follow-up and confirmation flows
+- Settings page for password updates and profile display
 
-## 📊 System Architecture (DFD Mapping)
+### Counselor Portal
+- Counselor dashboard
+- Pending appointment review
+- Confirm, complete, and reschedule appointment actions
+- Counselor-facing reports and analytics views
+- Notifications for student requests and high-risk alerts
 
-The platform is divided into three primary process branches:
+### Admin Portal
+- Admin dashboard
+- User registry view
+- Audit log view
+- Reports and analytics views
+- Security and system status summaries
 
-### 1.0 Student Portal
-* **Process 1.1:** Self-Assessment Modules.
-* **Process 1.2:** Appointment Scheduling.
-* **Process 1.3:** Wellness Resource Access.
+### Shared System Features
+- Dark mode toggle
+- Persistent role, user, profile, appointment, and notification state
+- Role-based notification center
+- Toast-style notifications
+- Responsive navigation with mobile menu support
+- Animated UI transitions
 
-### 2.0 Counselor Portal
-* **Process 2.1:** Intelligent Appointment Management.
-* **Process 2.2:** Student Progress Analytics.
-* **Process 2.3:** Schedule Customization.
+## Local Backend Dependencies
+Some flows use local PHP endpoints under `campuswell-api/`, including:
+- `login.php`
+- `register.php`
+- `forgot-password.php`
+- `verify-mfa.php`
+- `profile.php`
 
-### 3.0 Admin Portal
-* **Process 3.1:** System Configuration.
-* **Process 3.2:** Audit Logs & User Activity Tracking.
-* **Process 3.3:** Global Data Analytics.
+Because of that, authentication and profile syncing depend on a working local XAMPP-style setup.
 
----
-
-## 🔑 Mock Credentials
-For testing and demonstration purposes, use the following accounts:
+## Mock Credentials
+Use these accounts for testing and demonstration:
 
 | Role | Email | Password |
 | :--- | :--- | :--- |
-| **Student** | `aldrich@grc.edu.ph` | `password123` |
-| **Student** | `jether@grc.edu.ph` | `password123` |
-| **Counselor** | `counselor@grc.edu.ph` | `admin123` |
-| **Admin** | `admin@grc.edu.ph` | `root` |
+| Student | `aldrich@grc.edu.ph` | `password123` |
+| Student | `jether@grc.edu.ph` | `password123` |
+| Counselor | `counselor@grc.edu.ph` | `admin123` |
+| Admin | `admin@grc.edu.ph` | `root` |
 
----
+## Getting Started
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
+2. Start the frontend:
+   ```bash
+   npm run dev
+   ```
+3. Run the local backend API if you want login, registration, MFA, password recovery, and profile sync to work.
 
+## Scripts
+- `npm run dev` - start the Vite development server
+- `npm run build` - create a production build
+- `npm run preview` - preview the production build locally
+- `npm run lint` - run ESLint
+- `npm run deploy` - build and deploy to GitHub Pages
 
-## 📸 UI Design Principles
-- **Bento Grid:** Information is organized into clean, high-contrast cards.
-- **Night-Mode First:** Slate-950 backgrounds with deep indigo (#1E3A8A) accents.
-- **Interactive Feedback:** Framer Motion "Shake" effects on invalid logins and smooth modal entry.
-
-
----
+## UI Notes
+- Bento-style card layout
+- Night-mode first visual language
+- Strong motion feedback for login and modal interactions
