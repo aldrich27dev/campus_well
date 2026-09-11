@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Lock, UserRound, Mail, BadgeInfo } from 'lucide-react';
-import { Card, Button, Input } from '../components/UI';
+import { ArrowLeft, Lock, UserRound, Mail, BadgeInfo, Eye, EyeOff, Check, X, CheckCircle2 } from 'lucide-react';
+import { Card, Button } from '../components/UI';
 import { useSystem } from '../context/SystemContext';
 import { supabase } from '../lib/supabase';
 
@@ -37,10 +37,31 @@ const normalizeProfile = (payload, fallbackUser = {}) => {
 const Settings = () => {
   const navigate = useNavigate();
   const { user, profile, updateProfile, updatePassword } = useSystem();
+  
+  // Password States
   const [password, setPassword] = useState('');
-  const [saved, setSaved] = useState(false);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  
+  // Modal & Status States
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [profileError, setProfileError] = useState('');
+
+  // Password Validation Rules
+  const passwordRules = {
+    minLength: password.length >= 8,
+    hasUpper: /[A-Z]/.test(password),
+    hasLower: /[a-z]/.test(password),
+    hasNumber: /[0-9]/.test(password),
+    hasSpecial: /[@$!%*?&]/.test(password),
+  };
+
+  const isPasswordValid = Object.values(passwordRules).every(Boolean);
+  const doPasswordsMatch = password.length > 0 && password === confirmPassword;
+  const canSubmit = isPasswordValid && doPasswordsMatch;
+
   const resolvedProfile = useMemo(
     () => normalizeProfile(profile || user || {}, user || {}),
     [profile, user]
@@ -116,16 +137,18 @@ const Settings = () => {
   };
   const displayName = fullProfileName || resolvedProfile.fullName || user?.name || 'Not provided';
 
-  const handleSave = (e) => {
+  const handleSave = async (e) => {
     e.preventDefault();
-    if (!password.trim()) return;
-    updatePassword(password.trim());
+    if (!canSubmit) return;
+
+    await updatePassword(password.trim());
     setPassword('');
-    setSaved(true);
+    setConfirmPassword('');
+    setShowConfirmModal(true);
   };
 
   return (
-    <div className="min-h-screen bg-background px-4 py-6 md:py-10">
+    <div className="min-h-screen bg-background px-4 py-6 md:py-10 relative">
       <div className="max-w-5xl mx-auto">
         <button
           onClick={() => navigate(-1)}
@@ -220,50 +243,133 @@ const Settings = () => {
             )}
           </Card>
 
-          <Card className="rounded-[3rem] bg-surface dark:bg-surface-elevated border border-border p-6 md:p-8">
-            <div className="h-12 w-12 rounded-2xl bg-campus-green/10 text-campus-green flex items-center justify-center mb-5">
-              <Lock size={22} />
-            </div>
-            <h2 className="text-xl font-black uppercase italic tracking-tighter text-foreground">
-              Change Password
-            </h2>
-            <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
-              Only the password can be edited here. All other account details are read-only.
-            </p>
-
-            <form onSubmit={handleSave} className="mt-6 space-y-4">
-              <Input
-                label="New Password"
-                type="password"
-                value={password}
-                onChange={(e) => {
-                  setPassword(e.target.value);
-                  setSaved(false);
-                }}
-                placeholder="Enter new password"
-                required
-              />
-
-              <Button type="submit" variant="primary" className="w-full py-4 rounded-2xl">
-                Save Password
-              </Button>
-            </form>
-
-            {saved && (
-              <p className="mt-4 text-sm font-bold text-campus-green">
-                Password updated successfully.
+          <Card className="rounded-[3rem] bg-surface dark:bg-surface-elevated border border-border p-6 md:p-8 flex flex-col justify-between">
+            <div>
+              <div className="h-12 w-12 rounded-2xl bg-campus-green/10 text-campus-green flex items-center justify-center mb-5">
+                <Lock size={22} />
+              </div>
+              <h2 className="text-xl font-black uppercase italic tracking-tighter text-foreground">
+                Change Password
+              </h2>
+              <p className="mt-2 text-sm text-muted-foreground leading-relaxed">
+                Only the password can be edited here. All other account details are read-only.
               </p>
-            )}
+
+              <form onSubmit={handleSave} className="mt-6 space-y-4">
+                {/* New Password Input */}
+                <div>
+                  <label className="block text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 ml-1">New Password</label>
+                  <div className="relative flex items-center">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Enter new password"
+                      required
+                      className="w-full pl-5 pr-12 py-3.5 bg-muted/30 dark:bg-muted/20 border border-border focus:border-campus-blue rounded-2xl outline-none text-sm text-foreground transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-4 text-muted-foreground hover:text-foreground transition-colors p-1"
+                    >
+                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Requirements Checklist */}
+                {password.length > 0 && (
+                  <div className="p-3 bg-muted/30 dark:bg-muted/20 border border-border rounded-xl space-y-1.5">
+                    <p className="text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1">Password Requirements</p>
+                    <div className="grid grid-cols-2 gap-1 text-[10px]">
+                      <div className={`flex items-center gap-1.5 ${passwordRules.minLength ? 'text-emerald-500 font-bold' : 'text-muted-foreground'}`}>
+                        {passwordRules.minLength ? <Check size={12} /> : <X size={12} />} 8+ Characters
+                      </div>
+                      <div className={`flex items-center gap-1.5 ${passwordRules.hasUpper ? 'text-emerald-500 font-bold' : 'text-muted-foreground'}`}>
+                        {passwordRules.hasUpper ? <Check size={12} /> : <X size={12} />} Uppercase (A-Z)
+                      </div>
+                      <div className={`flex items-center gap-1.5 ${passwordRules.hasLower ? 'text-emerald-500 font-bold' : 'text-muted-foreground'}`}>
+                        {passwordRules.hasLower ? <Check size={12} /> : <X size={12} />} Lowercase (a-z)
+                      </div>
+                      <div className={`flex items-center gap-1.5 ${passwordRules.hasNumber ? 'text-emerald-500 font-bold' : 'text-muted-foreground'}`}>
+                        {passwordRules.hasNumber ? <Check size={12} /> : <X size={12} />} Number (0-9)
+                      </div>
+                      <div className={`flex items-center gap-1.5 ${passwordRules.hasSpecial ? 'text-emerald-500 font-bold' : 'text-muted-foreground'}`}>
+                        {passwordRules.hasSpecial ? <Check size={12} /> : <X size={12} />} Special (@$!%*?&)
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Confirm Password Input */}
+                <div>
+                  <label className="block text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 ml-1">Confirm New Password</label>
+                  <div className="relative flex items-center">
+                    <input
+                      type={showConfirmPassword ? "text" : "password"}
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="Confirm new password"
+                      required
+                      className="w-full pl-5 pr-12 py-3.5 bg-muted/30 dark:bg-muted/20 border border-border focus:border-campus-blue rounded-2xl outline-none text-sm text-foreground transition-all"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-4 text-muted-foreground hover:text-foreground transition-colors p-1"
+                    >
+                      {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                    </button>
+                  </div>
+                  {confirmPassword.length > 0 && !doPasswordsMatch && (
+                    <p className="text-[10px] font-bold text-rose-500 mt-1 ml-1">Passwords do not match.</p>
+                  )}
+                </div>
+
+                <Button 
+                  type="submit" 
+                  variant="primary" 
+                  disabled={!canSubmit}
+                  className="w-full py-4 rounded-2xl disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+                >
+                  Save Password
+                </Button>
+              </form>
+            </div>
 
             <div className="mt-6 rounded-2xl border border-border bg-muted/30 dark:bg-muted/20 p-4">
               <p className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground mb-2">Security Tip</p>
               <p className="text-sm text-foreground leading-relaxed">
-                Use a strong password with at least 8 characters, mixing letters and numbers.
+                Use a strong password with at least 8 characters, mixing uppercase, lowercase, numbers, and special symbols.
               </p>
             </div>
           </Card>
         </div>
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+          <div className="bg-surface dark:bg-surface-elevated border border-border rounded-[2.5rem] p-8 max-w-sm w-full shadow-2xl text-center space-y-5 animate-in fade-in zoom-in duration-200">
+            <div className="w-16 h-16 bg-emerald-500/10 text-emerald-500 rounded-full flex items-center justify-center mx-auto">
+              <CheckCircle2 size={36} />
+            </div>
+            <div>
+              <h3 className="text-xl font-black uppercase italic tracking-tight text-foreground">Confirmed</h3>
+              <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
+                Your password has been successfully updated and secured.
+              </p>
+            </div>
+            <Button
+              onClick={() => setShowConfirmModal(false)}
+              className="w-full bg-campus-blue text-primary-foreground font-black text-xs uppercase tracking-[0.2em] py-4 rounded-2xl shadow-soft"
+            >
+              OK
+            </Button>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
