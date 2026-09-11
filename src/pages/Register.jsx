@@ -107,9 +107,22 @@ const Register = () => {
       };
 
       const { error } = await requireSupabase().auth.signUp({
-        email: payload.email.trim(), password: payload.password,
-        options: { data: { role: 'student', student_id: payload.studentId, first_name: payload.firstName, middle_name: payload.middleName, last_name: payload.lastName, year_level: payload.yearLevel, contact_number: payload.contactNumber, address: payload.address } },
+        email: payload.email.trim(),
+        password: payload.password,
+        options: {
+          data: {
+            role: 'student',
+            student_id: payload.studentId,
+            first_name: payload.firstName,
+            middle_name: payload.middleName,
+            last_name: payload.lastName,
+            year_level: payload.yearLevel,
+            contact_number: payload.contactNumber,
+            address: payload.address
+          }
+        },
       });
+
       if (!error) {
         setSubmitted(true);
         setShowSuccessModal(true);
@@ -117,7 +130,7 @@ const Register = () => {
         setBackendError(error.message || 'Registration failed.');
       }
     } catch (error) {
-      setBackendError(error.message || 'Unable to reach Supabase. Check .env.local.');
+      setBackendError(error.message || 'Unable to reach Supabase. Check .env configuration.');
     } finally {
       setIsCreating(false);
     }
