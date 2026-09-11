@@ -10,6 +10,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { useSystem } from '../context/SystemContext';
+import { supabase } from '../lib/supabase';
 
 const MotionDiv = motion.div;
 const MotionButton = motion.button;
@@ -48,9 +49,14 @@ const Assessment = () => {
     }
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     setIsAnalyzing(true);
     const totalScore = Object.values(answers).reduce((a, b) => a + b, 0);
+    const riskLevel = totalScore >= 12 ? 'High' : totalScore >= 7 ? 'Moderate' : 'Normal';
+    if (supabase && user?.id) {
+      await supabase.from('assessments').insert({ student_id: user.id, answers, score: totalScore, risk_level: riskLevel });
+      await supabase.from('profiles').update({ risk_level: riskLevel }).eq('id', user.id);
+    }
 
     setTimeout(() => {
       if (totalScore >= 12) {

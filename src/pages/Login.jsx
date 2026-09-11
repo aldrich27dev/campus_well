@@ -6,6 +6,7 @@ import { Shield, Mail, MessageSquare, AlertCircle, KeyRound, Eye, EyeOff } from 
 import { useSystem } from '../context/SystemContext';
 import { Button } from '../components/UI';
 import Logo from '../assets/mainlogo.png';
+import { requireSupabase } from '../lib/supabase';
 
 const Login = () => {
   const [role, setRole] = useState('student');
@@ -54,17 +55,18 @@ const Login = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:8080/campuswell-api/login.php', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: email.trim(), password, role }),
-      });
-
-      const data = await response.json();
-
-      if (data.status === 'success') {
+      const client = requireSupabase();
+      const { data: authData, error: authError } = await client.auth.signInWithPassword({ email: email.trim(), password });
+      if (authError) throw authError;
+      const { data: profile, error: profileError } = await client.from('profiles').select('*').eq('id', authData.user.id).single();
+      if (profileError) throw profileError;
+      if (profile.role !== role) {
+        await client.auth.signOut();
+        setError(`This account is registered as ${profile.role}. Choose that portal role to continue.`);
+        triggerShake();
+        return;
+      }
+      {
         // Save both email and password if Remember Me is checked
         if (rememberMe) {
           localStorage.setItem('remembered_email', email.trim());
@@ -75,18 +77,11 @@ const Login = () => {
         }
 
         // Conditional router verification step transition routing interception matrix rules mapping
-        if (data.requires_mfa) {
-          setShowMfaForm(true);
-        } else {
-          syncLogin(data, role);
-          navigate(`/${role}/dashboard`);
-        }
-      } else {
-        setError(data.message || "Invalid username or password.");
-        triggerShake();
+        syncLogin({ user: { id: authData.user.id, email: authData.user.email }, profile: { ...profile, email: authData.user.email } }, role);
+        navigate(`/${role}/dashboard`);
       }
-    } catch {
-      setError("Database connection failed. Please check your XAMPP status.");
+    } catch (err) {
+      setError(err.message || 'Unable to sign in. Check your Supabase configuration.');
       triggerShake();
     }
   };
@@ -102,28 +97,8 @@ const Login = () => {
       return;
     }
 
-    try {
-      const response = await fetch('http://localhost:8080/campuswell-api/verify-mfa.php', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email: email.trim(), code: mfaCode.trim(), role }),
-      });
-
-      const data = await response.json();
-
-      if (data.status === 'success') {
-        syncLogin(data, role);
-        navigate(`/${role}/dashboard`);
-      } else {
-        setError(data.message || "Verification code validation failure items found.");
-        triggerShake();
-      }
-    } catch {
-      setError("MFA endpoint tracking network request connection exception.");
-      triggerShake();
-    }
+    setError('Supabase MFA requires a TOTP factor to be enrolled. This account does not use the legacy PHP verification code.');
+    triggerShake();
   };
 
   return (

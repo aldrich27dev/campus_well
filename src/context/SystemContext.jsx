@@ -1,5 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import { supabase } from '../lib/supabase';
 
 const SystemContext = createContext(null);
 
@@ -82,6 +83,30 @@ export const SystemProvider = ({ children }) => {
     }
   }, [user]);
 
+  useEffect(() => {
+    if (!supabase) return undefined;
+    let active = true;
+    const hydrate = async (authUser) => {
+      if (!authUser || !active) return;
+      const { data: profileRow } = await supabase.from('profiles').select('*').eq('id', authUser.id).single();
+      if (!active) return;
+      const normalized = normalizeProfileRecord({ ...profileRow, email: authUser.email });
+      const role = normalized?.role || 'student';
+      setUser({ id: authUser.id, email: authUser.email, name: normalized?.fullName || authUser.email, role });
+      setProfile({ ...normalized, source: 'supabase' });
+      updateRole(role);
+      const { data: appointmentRows } = await supabase.from('appointments').select('*, student:profiles!appointments_student_id_fkey(first_name,last_name,year_level)').order('created_at', { ascending: false });
+      if (active && appointmentRows) setAppointments(appointmentRows.map((item) => ({ ...item, date: item.appointment_date, time: item.appointment_time, student: [item.student?.first_name, item.student?.last_name].filter(Boolean).join(' ') || 'CampusWell Student', yearLevel: item.student?.year_level, assistantState: item.status?.[0]?.toUpperCase() + item.status?.slice(1) })));
+      const { data: notificationRows } = await supabase.from('notifications').select('*').order('created_at', { ascending: false });
+      if (active && notificationRows) setNotifications(notificationRows.map((item) => ({ ...item, status: item.title, read: Boolean(item.read_at), time: new Date(item.created_at).toLocaleString() })));
+    };
+    supabase.auth.getUser().then(({ data }) => hydrate(data.user));
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (session?.user) hydrate(session.user);
+    });
+    return () => { active = false; listener.subscription.unsubscribe(); };
+  }, []);
+
   const toggleDarkMode = () => setDarkMode(prev => !prev);
 
   const login = (userData, role) => {
@@ -92,6 +117,7 @@ export const SystemProvider = ({ children }) => {
   };
 
   const logout = () => {
+    supabase?.auth.signOut();
     setUser(null);
     setProfile(null);
     updateRole('student'); // Default back to student
@@ -100,7 +126,7 @@ export const SystemProvider = ({ children }) => {
     localStorage.removeItem('campuswell_profile');
   };
 
-  const addNotification = (studentOrMeta, status, meta = {}) => {
+  const addNotification = async (studentOrMeta, status, meta = {}) => {
     const studentName = typeof studentOrMeta === 'string' ? studentOrMeta : studentOrMeta?.name || 'Student';
     const yearLevel = typeof studentOrMeta === 'object' ? studentOrMeta?.yearLevel : meta.yearLevel;
     const roles = Array.isArray(meta.roles) && meta.roles.length > 0 ? meta.roles : ['student', 'counselor', 'admin'];
@@ -118,6 +144,14 @@ export const SystemProvider = ({ children }) => {
       type: meta.type || 'system'
     };
     setNotifications(prev => [newNotif, ...prev]);
+    if (supabase && user?.id) {
+      const { data } = await supabase.from('notifications').insert({
+        recipient_id: meta.recipientId || (meta.roles?.includes('student') ? user.id : null),
+        audience_roles: meta.roles || [], title: status, message: newNotif.message,
+        category: newNotif.category, risk: newNotif.risk || null,
+      }).select().single();
+      if (data) setNotifications(prev => prev.map(item => item.id === newNotif.id ? { ...item, ...data, time: 'Just now' } : item));
+    }
   };
 
   const markNotificationRead = (id) => {
@@ -134,23 +168,39 @@ export const SystemProvider = ({ children }) => {
     });
   };
 
-  const updateProfile = (nextProfile) => {
-    setProfile(prev => (typeof nextProfile === 'function' ? nextProfile(prev) : nextProfile));
+  const updateProfile = async (nextProfile) => {
+    const resolved = typeof nextProfile === 'function' ? nextProfile(profile) : nextProfile;
+    setProfile(resolved);
+    if (supabase && user?.id) await supabase.from('profiles').update({ first_name: resolved.firstName, middle_name: resolved.middleName, last_name: resolved.lastName, year_level: resolved.yearLevel, contact_number: resolved.contactNumber, address: resolved.address }).eq('id', user.id);
   };
 
-  const updatePassword = (password) => {
+  const updatePassword = async (password) => {
     setProfile(prev => ({ ...(prev || {}), password }));
+    if (supabase) {
+      const { error } = await supabase.auth.updateUser({ password });
+      if (error) throw error;
+    }
   };
 
-  const createAppointment = (appointment) => {
-    setAppointments(prev => [
-      { id: Date.now(), status: 'pending', assistantState: 'Pending', ...appointment },
-      ...prev,
-    ]);
+  const createAppointment = async (appointment) => {
+    const draft = { id: Date.now(), status: 'pending', assistantState: 'Pending', ...appointment };
+    setAppointments(prev => [draft, ...prev]);
+    if (supabase && user?.id) {
+      const { data, error } = await supabase.from('appointments').insert({ student_id: user.id, appointment_date: appointment.date, appointment_time: appointment.time, reason: appointment.reason, status: 'pending' }).select().single();
+      if (error) { setAppointments(prev => prev.filter(item => item.id !== draft.id)); throw error; }
+      setAppointments(prev => prev.map(item => item.id === draft.id ? { ...item, ...data, date: data.appointment_date, time: data.appointment_time } : item));
+    }
   };
 
-  const updateAppointment = (id, updates) => {
+  const updateAppointment = async (id, updates) => {
     setAppointments(prev => prev.map(item => (item.id === id ? { ...item, ...updates } : item)));
+    if (supabase && typeof id === 'string') {
+      const payload = { ...updates };
+      if (payload.date) { payload.appointment_date = payload.date; delete payload.date; }
+      if (payload.time) { payload.appointment_time = payload.time; delete payload.time; }
+      delete payload.assistantState;
+      await supabase.from('appointments').update(payload).eq('id', id);
+    }
   };
 
   return (

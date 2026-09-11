@@ -15,6 +15,7 @@ import {
   Check
 } from 'lucide-react';
 import { Card, Button, Input } from '../components/UI';
+import { requireSupabase } from '../lib/supabase';
 
 const addressOptions = [
   'Caloocan City',
@@ -105,24 +106,18 @@ const Register = () => {
         middleName: middleNA ? 'N/A' : form.middleName,
       };
 
-      const response = await fetch('http://localhost:8080/campuswell-api/register.php', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(payload),
+      const { error } = await requireSupabase().auth.signUp({
+        email: payload.email.trim(), password: payload.password,
+        options: { data: { role: 'student', student_id: payload.studentId, first_name: payload.firstName, middle_name: payload.middleName, last_name: payload.lastName, year_level: payload.yearLevel, contact_number: payload.contactNumber, address: payload.address } },
       });
-
-      const data = await response.json();
-
-      if (data.status === 'success') {
+      if (!error) {
         setSubmitted(true);
         setShowSuccessModal(true);
       } else {
-        setBackendError(data.message || 'Registration failed.');
+        setBackendError(error.message || 'Registration failed.');
       }
     } catch (error) {
-      setBackendError('Unable to connect to the server. Please check your XAMPP and MySQL installation.');
+      setBackendError(error.message || 'Unable to reach Supabase. Check .env.local.');
     } finally {
       setIsCreating(false);
     }

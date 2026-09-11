@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Lock, UserRound, Mail, BadgeInfo } from 'lucide-react';
 import { Card, Button, Input } from '../components/UI';
 import { useSystem } from '../context/SystemContext';
+import { supabase } from '../lib/supabase';
 
 const formatValue = (value, fallback = 'Not provided') => {
   if (value === null || value === undefined) return fallback;
@@ -70,34 +71,22 @@ const Settings = () => {
       setProfileError('');
 
       try {
-        const response = await fetch(`http://localhost:8080/campuswell-api/profile.php?email=${encodeURIComponent(user.email)}`, {
-          method: 'GET',
-        });
-
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-
-        const payload = await response.json();
-        const status = String(payload?.status || '').toLowerCase();
-        const hasProfile = Boolean(payload?.profile || payload?.user || payload?.data || payload?.email || payload?.student_id || payload?.studentId);
-
-        if ((status && status !== 'success') || !hasProfile) {
-          throw new Error(payload?.message || 'Profile not found');
-        }
+        if (!supabase || !user?.id) throw new Error('Supabase is not configured');
+        const { data: payload, error } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+        if (error || !payload) throw error || new Error('Profile not found');
 
         const normalized = normalizeProfile(payload, user);
         if (!cancelled && Object.values(normalized).some(Boolean)) {
           updateProfile({
             ...normalized,
-            source: 'database',
+            source: 'supabase',
           });
           setProfileError('');
         }
       } catch {
         if (!cancelled) {
           if (!hasFallbackData) {
-            setProfileError('Connected to login, but `profile.php` is missing or not returning the `users` row for this email.');
+            setProfileError('Your Supabase profile could not be loaded.');
           }
         }
       } finally {
@@ -177,7 +166,7 @@ const Settings = () => {
                   </span>
                   <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/80 dark:bg-surface-elevated/80 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground">
                     <Mail size={12} className="text-campus-blue dark:text-campus-green" />
-                    {loadingProfile ? 'Syncing profile' : profile?.source === 'database' ? 'Synced from XAMPP' : profile ? 'Profile cached' : 'Login identity only'}
+                    {loadingProfile ? 'Syncing profile' : profile?.source === 'supabase' ? 'Synced from Supabase' : profile ? 'Profile cached' : 'Login identity only'}
                   </span>
                 </div>
               </div>

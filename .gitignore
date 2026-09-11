@@ -11,8 +11,17 @@ node_modules
 dist
 dist-ssr
 *.local
+.env
+.env.local
 
 scopeandlimitation.md
+schema.sql
+_common.php
+forgot-password.php
+login.php
+profile.php
+register.php
+verify-mfa.php
 
 # Editor directories and files
 .vscode/*

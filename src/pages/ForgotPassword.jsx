@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { Shield, KeyRound, CheckCircle2, AlertCircle, ArrowLeft, Loader2, Eye, EyeOff, Check, X } from 'lucide-react';
+import { requireSupabase } from '../lib/supabase';
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
@@ -42,23 +43,17 @@ const ForgotPassword = () => {
     setError('');
 
     try {
-      const res = await fetch('http://localhost:8080/campuswell-api/forgot-password.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'request_otp', email: email.trim() })
+      const { error: resetError } = await requireSupabase().auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}${window.location.pathname}#/forgot-password`,
       });
-      const data = await res.json();
-      if (data.status === 'success') {
-        if (data.code) {
-          setCode(String(data.code));
-        }
+      if (!resetError) {
         setStep(2);
       } else {
-        setError(data.message || 'Email not found.');
+        setError(resetError.message || 'Could not send the reset email.');
         triggerShake();
       }
-    } catch {
-      setError('Connection failure. Check XAMPP environment.');
+    } catch (err) {
+      setError(err.message || 'Unable to reach Supabase.');
       triggerShake();
     } finally {
       setIsLoading(false);
@@ -71,25 +66,8 @@ const ForgotPassword = () => {
     setIsLoading(true);
     setError('');
 
-    try {
-      const res = await fetch('http://localhost:8080/campuswell-api/forgot-password.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'verify_otp', email: email.trim(), code: code.trim() })
-      });
-      const data = await res.json();
-      if (data.status === 'success') {
-        setStep(3);
-      } else {
-        setError(data.message || 'Invalid verification code.');
-        triggerShake();
-      }
-    } catch {
-      setError('Connection error occurred.');
-      triggerShake();
-    } finally {
-      setIsLoading(false);
-    }
+    setError('Open the reset link in your email. It will return here securely and let you set a new password.');
+    setIsLoading(false);
   };
 
   const handleResetPassword = async (e) => {
@@ -112,20 +90,15 @@ const ForgotPassword = () => {
     setError('');
 
     try {
-      const res = await fetch('http://localhost:8080/campuswell-api/forgot-password.php', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reset_password', email: email.trim(), password: newPassword })
-      });
-      const data = await res.json();
-      if (data.status === 'success') {
+      const { error: updateError } = await requireSupabase().auth.updateUser({ password: newPassword });
+      if (!updateError) {
         setStep(4);
       } else {
-        setError(data.message || 'Password update failed.');
+        setError(updateError.message || 'Password update failed. Open the reset link from your email first.');
         triggerShake();
       }
-    } catch {
-      setError('Failed to update credentials.');
+    } catch (err) {
+      setError(err.message || 'Failed to update credentials.');
       triggerShake();
     } finally {
       setIsLoading(false);

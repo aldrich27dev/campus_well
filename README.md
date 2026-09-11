@@ -59,15 +59,19 @@ Recent additions include:
 - Responsive navigation with mobile menu support
 - Animated UI transitions
 
-## Local Backend Dependencies
-Some flows use local PHP endpoints under `campuswell-api/`, including:
-- `login.php`
-- `register.php`
-- `forgot-password.php`
-- `verify-mfa.php`
-- `profile.php`
+## Supabase setup
 
-Because of that, authentication and profile syncing depend on a working local XAMPP-style setup.
+CampusWell now uses Supabase for authentication, profiles, appointments, notifications, and assessment records. The former PHP files are retained only as legacy reference and are no longer called by the frontend.
+
+1. Create a Supabase project.
+2. In **SQL Editor**, run [`supabase/schema.sql`](supabase/schema.sql).
+3. Copy `.env.example` to `.env.local`, then add the Project URL and public anon key from **Project Settings > API**.
+4. In **Authentication > URL Configuration**, add your local and production URLs. Ensure the password-reset redirect URL is permitted, for example `http://localhost:5173/#/forgot-password`.
+5. Configure email delivery in **Authentication > Email** before relying on password recovery or email confirmation.
+
+The app intentionally has no service-role key. Row Level Security in the schema limits student data to its owner while allowing counselors and admins to manage appointment workflows.
+
+New public registrations are always students. Create a staff user through Supabase Auth, then promote it from the SQL Editor with `update public.profiles set role = 'counselor' where id = '<auth-user-uuid>';` (or `admin`).
 
 ## Mock Credentials
 Use these accounts for testing and demonstration:
