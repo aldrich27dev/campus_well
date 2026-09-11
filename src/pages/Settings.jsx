@@ -358,7 +358,7 @@ const Settings = () => {
             <div>
               <h3 className="text-xl font-black uppercase italic tracking-tight text-foreground">Confirmed</h3>
               <p className="text-xs text-muted-foreground mt-2 leading-relaxed">
-                Your password has been successfully updated and secured.
+                Your password has been successfully updated and secured!.
               </p>
             </div>
             <Button
