@@ -15,7 +15,7 @@ import {
   Check
 } from 'lucide-react';
 import { Card, Button, Input } from '../components/UI';
-import { requireSupabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 const addressOptions = [
   'Caloocan City',
@@ -106,7 +106,7 @@ const Register = () => {
         middleName: middleNA ? 'N/A' : form.middleName,
       };
 
-      const { error } = await requireSupabase().auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email: payload.email.trim(),
         password: payload.password,
         options: {

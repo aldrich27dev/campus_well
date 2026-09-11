@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence, useAnimation } from 'framer-motion';
 import { Shield, KeyRound, CheckCircle2, AlertCircle, ArrowLeft, Loader2, Eye, EyeOff, Check, X } from 'lucide-react';
-import { requireSupabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 const ForgotPassword = () => {
   const navigate = useNavigate();
@@ -43,13 +43,12 @@ const ForgotPassword = () => {
     setError('');
 
     try {
-      const { error: resetError } = await requireSupabase().auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: `${window.location.origin}${window.location.pathname}#/forgot-password`,
-      });
-      if (!resetError) {
+      const { error: otpError } = await supabase.auth.resetPasswordForEmail(email.trim());
+
+      if (!otpError) {
         setStep(2);
       } else {
-        setError(resetError.message || 'Could not send the reset email.');
+        setError(otpError.message || 'Could not send verification code.');
         triggerShake();
       }
     } catch (err) {
@@ -66,8 +65,25 @@ const ForgotPassword = () => {
     setIsLoading(true);
     setError('');
 
-    setError('Open the reset link in your email. It will return here securely and let you set a new password.');
-    setIsLoading(false);
+    try {
+      const { error: verifyError } = await supabase.auth.verifyOtp({
+        email: email.trim(),
+        token: code.trim(),
+        type: 'recovery',
+      });
+
+      if (!verifyError) {
+        setStep(3);
+      } else {
+        setError(verifyError.message || 'Invalid or expired verification code.');
+        triggerShake();
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to verify code.');
+      triggerShake();
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleResetPassword = async (e) => {
@@ -90,11 +106,11 @@ const ForgotPassword = () => {
     setError('');
 
     try {
-      const { error: updateError } = await requireSupabase().auth.updateUser({ password: newPassword });
+      const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
       if (!updateError) {
         setStep(4);
       } else {
-        setError(updateError.message || 'Password update failed. Open the reset link from your email first.');
+        setError(updateError.message || 'Password update failed.');
         triggerShake();
       }
     } catch (err) {

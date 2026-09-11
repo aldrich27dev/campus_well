@@ -6,7 +6,7 @@ import { Shield, Mail, MessageSquare, AlertCircle, KeyRound, Eye, EyeOff } from 
 import { useSystem } from '../context/SystemContext';
 import { Button } from '../components/UI';
 import Logo from '../assets/mainlogo.png';
-import { requireSupabase } from '../lib/supabase';
+import { supabase } from '../lib/supabase';
 
 const Login = () => {
   const [role, setRole] = useState('student');
@@ -19,6 +19,8 @@ const Login = () => {
   const [showMfaForm, setShowMfaForm] = useState(false);
   const [mfaCode, setMfaCode] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [resendSuccess, setResendSuccess] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
   const navigate = useNavigate();
   const controls = useAnimation();
@@ -47,6 +49,7 @@ const Login = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    setResendSuccess(false);
 
     if (!email.trim() || !password) {
       setError("Please enter both username and password.");
@@ -55,9 +58,19 @@ const Login = () => {
     }
 
     try {
-      const client = requireSupabase();
+      const client = supabase;
       const { data: authData, error: authError } = await client.auth.signInWithPassword({ email: email.trim(), password });
-      if (authError) throw authError;
+      
+      if (authError) {
+        if (authError.message.toLowerCase().includes('email not confirmed')) {
+          setError('EMAIL NOT CONFIRMED');
+        } else {
+          setError(authError.message || 'Unable to sign in. Check your Supabase configuration.');
+        }
+        triggerShake();
+        return;
+      }
+
       const { data: profile, error: profileError } = await client.from('profiles').select('*').eq('id', authData.user.id).single();
       if (profileError) throw profileError;
       if (profile.role !== role) {
@@ -83,6 +96,32 @@ const Login = () => {
     } catch (err) {
       setError(err.message || 'Unable to sign in. Check your Supabase configuration.');
       triggerShake();
+    }
+  };
+
+  const handleResendConfirmation = async () => {
+    if (!email.trim()) return;
+    setIsLoading(true);
+    setResendSuccess(false);
+
+    try {
+      const { error: resendError } = await supabase.auth.resend({
+        type: 'signup',
+        email: email.trim(),
+      });
+
+      if (resendError) {
+        setError(resendError.message);
+        triggerShake();
+      } else {
+        setResendSuccess(true);
+        setError('');
+      }
+    } catch (err) {
+      setError(err.message || 'Failed to resend confirmation email.');
+      triggerShake();
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -197,13 +236,37 @@ const Login = () => {
                         initial={{ opacity: 0, height: 0 }}
                         animate={{ opacity: 1, height: 'auto' }}
                         exit={{ opacity: 0, height: 0 }}
-                        className="flex items-center gap-2 p-3 bg-rose-50/70 dark:bg-rose-500/10 border border-rose-100/80 dark:border-rose-500/20 rounded-xl"
+                        className="flex flex-col gap-2 p-3 bg-rose-50/70 dark:bg-rose-500/10 border border-rose-100/80 dark:border-rose-500/20 rounded-xl"
                       >
-                        <AlertCircle size={14} className="text-rose-500 shrink-0" />
-                        <p className="text-[10px] font-black text-rose-600 uppercase tracking-tighter">{error}</p>
+                        <div className="flex items-center gap-2">
+                          <AlertCircle size={14} className="text-rose-500 shrink-0" />
+                          <p className="text-[10px] font-black text-rose-600 uppercase tracking-tighter">{error}</p>
+                        </div>
+                        {error === 'EMAIL NOT CONFIRMED' && (
+                          <button
+                            type="button"
+                            onClick={handleResendConfirmation}
+                            disabled={isLoading}
+                            className="text-[9px] font-black uppercase tracking-widest text-campus-blue dark:text-campus-green underline hover:opacity-80 transition-opacity text-left ml-5"
+                          >
+                            Resend Confirmation Email
+                          </button>
+                        )}
                       </motion.div>
                     )}
                   </AnimatePresence>
+
+                  {resendSuccess && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="p-3 bg-emerald-500/10 border border-emerald-500/20 rounded-xl text-center"
+                    >
+                      <p className="text-[10px] font-black text-emerald-500 uppercase tracking-wider">
+                        ✓ Confirmation email sent! Please check your inbox.
+                      </p>
+                    </motion.div>
+                  )}
 
                   <div>
                     <label className="block text-[9px] font-black text-muted-foreground uppercase tracking-widest mb-1.5 ml-1">Institutional Email</label>
