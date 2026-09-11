@@ -43,7 +43,7 @@ const NotificationCenter = () => {
   const MotionDiv = motion.div;
   const getBadge = (n) => {
     if (n.type === 'appointment') return { label: role === 'student' ? 'Appointment' : 'Booking', icon: CalendarClock };
-    if (n.type === 'assessment') return { label: n.risk === 'High' ? 'High Risk' : 'Assessment', icon: ShieldAlert };
+    if (n.type === 'assessment') return { label: n.risk ? `${n.risk} Risk` : 'Assessment', icon: ShieldAlert };
     return { label: 'System', icon: ClipboardList };
   };
 
@@ -52,19 +52,19 @@ const NotificationCenter = () => {
 
     if (role === 'student') {
       if (n.type === 'appointment') return `Your Appointment${year}`;
-      if (n.type === 'assessment' && n.risk === 'High') return 'Support Check-In';
+      if (n.type === 'assessment' && n.risk) return 'Support Check-In';
       return n.student ? `CampusWell Update${year}` : 'CampusWell Update';
     }
 
     if (role === 'counselor') {
       if (n.type === 'appointment') return `${n.student}${year} requested counseling`;
-      if (n.type === 'assessment' && n.risk === 'High') return `${n.student}${year} triggered a high-risk alert`;
+      if (n.type === 'assessment' && n.risk) return `${n.student}${year} triggered a ${n.risk.toLowerCase()}-risk alert`;
       return `${n.student}${year}`;
     }
 
     if (role === 'admin') {
       if (n.type === 'appointment') return `Appointment Logged: ${n.student}${year}`;
-      if (n.type === 'assessment' && n.risk === 'High') return `High-risk event: ${n.student}${year}`;
+      if (n.type === 'assessment' && n.risk) return `${n.risk}-risk event: ${n.student}${year}`;
       return `${n.student}${year}`;
     }
 
@@ -79,10 +79,10 @@ const NotificationCenter = () => {
       return n.message || `Appointment recorded for ${n.student}${year} on ${n.date} at ${n.time}.`;
     }
 
-    if (n.type === 'assessment' && n.risk === 'High') {
+    if (n.type === 'assessment' && n.risk) {
       if (role === 'student') return n.message || 'A support check-in was shared with the counseling team after your recent assessment.';
-      if (role === 'counselor') return n.message || `High-risk wellness alert requires review for ${n.student}${year}.`;
-      return n.message || `High-risk student alert logged for ${n.student}${year}.`;
+      if (role === 'counselor') return n.message || `${n.risk}-risk wellness alert requires review for ${n.student}${year}.`;
+      return n.message || `${n.risk}-risk student alert logged for ${n.student}${year}.`;
     }
 
     return n.message || n.status || `Triggered ${n.type || 'system'} alert.`;
@@ -201,7 +201,7 @@ const NotificationCenter = () => {
                         <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-muted/50 dark:bg-muted/25 text-muted-foreground text-[9px] font-black uppercase tracking-widest">
                           <BadgeIcon size={11} /> {badge.label}
                         </div>
-                        {n.risk === 'High' && (
+                        {n.risk && n.risk !== 'Normal' && (
                           <div className="inline-flex items-center gap-2 px-2.5 py-1 rounded-full bg-rose-100/80 dark:bg-rose-500/10 text-rose-600 text-[9px] font-black uppercase tracking-widest">
                             Priority Alert
                           </div>

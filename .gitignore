@@ -22,6 +22,7 @@ login.php
 profile.php
 register.php
 verify-mfa.php
+allow-student-appointment-changes.sql
 
 # Editor directories and files
 .vscode/*

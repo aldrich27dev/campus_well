@@ -27,6 +27,18 @@ const normalizeProfileRecord = (input) => {
   };
 };
 
+const normalizeNotificationRecord = (input) => ({
+  ...input,
+  student: input.student || input.actor_name || 'CampusWell Student',
+  yearLevel: input.yearLevel || input.actor_year_level || '',
+  status: input.status || input.title,
+  roles: input.roles || input.audience_roles || [],
+  type: input.type || input.event_type || input.category || 'system',
+  category: input.category || 'system',
+  read: Boolean(input.read ?? input.read_at),
+  time: input.time || (input.created_at ? new Date(input.created_at).toLocaleString() : 'Just now'),
+});
+
 export const SystemProvider = ({ children }) => {
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('campuswell_dark_mode') === 'true');
   const [notifications, setNotifications] = useState([]);
@@ -98,13 +110,28 @@ export const SystemProvider = ({ children }) => {
       const { data: appointmentRows } = await supabase.from('appointments').select('*, student:profiles!appointments_student_id_fkey(first_name,last_name,year_level)').order('created_at', { ascending: false });
       if (active && appointmentRows) setAppointments(appointmentRows.map((item) => ({ ...item, date: item.appointment_date, time: item.appointment_time, student: [item.student?.first_name, item.student?.last_name].filter(Boolean).join(' ') || 'CampusWell Student', yearLevel: item.student?.year_level, assistantState: item.status?.[0]?.toUpperCase() + item.status?.slice(1) })));
       const { data: notificationRows } = await supabase.from('notifications').select('*').order('created_at', { ascending: false });
-      if (active && notificationRows) setNotifications(notificationRows.map((item) => ({ ...item, status: item.title, read: Boolean(item.read_at), time: new Date(item.created_at).toLocaleString() })));
+      if (active && notificationRows) setNotifications(notificationRows.map(normalizeNotificationRecord));
+
+      const notificationChannel = supabase
+        .channel(`notifications-for-${authUser.id}`)
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, ({ new: notification }) => {
+          const isRecipient = notification.recipient_id === authUser.id;
+          const isAudienceMember = Array.isArray(notification.audience_roles) && notification.audience_roles.includes(role);
+          if (!isRecipient && !isAudienceMember) return;
+          const normalizedNotification = normalizeNotificationRecord(notification);
+          setNotifications((previous) => previous.some((item) => item.id === normalizedNotification.id)
+            ? previous
+            : [normalizedNotification, ...previous]);
+        })
+        .subscribe();
+      return () => notificationChannel.unsubscribe();
     };
-    supabase.auth.getUser().then(({ data }) => hydrate(data.user));
+    let stopNotificationChannel;
+    supabase.auth.getUser().then(({ data }) => hydrate(data.user).then((cleanup) => { stopNotificationChannel = cleanup; }));
     const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session?.user) hydrate(session.user);
     });
-    return () => { active = false; listener.subscription.unsubscribe(); };
+    return () => { active = false; listener.subscription.unsubscribe(); stopNotificationChannel?.(); };
   }, []);
 
   const toggleDarkMode = () => setDarkMode(prev => !prev);
@@ -145,12 +172,26 @@ export const SystemProvider = ({ children }) => {
     };
     setNotifications(prev => [newNotif, ...prev]);
     if (supabase && user?.id) {
-      const { data } = await supabase.from('notifications').insert({
-        recipient_id: meta.recipientId || (meta.roles?.includes('student') ? user.id : null),
-        audience_roles: meta.roles || [], title: status, message: newNotif.message,
+      const payload = {
+        recipient_id: meta.recipientId || (roles.includes('student') ? user.id : null),
+        audience_roles: roles, title: status, message: newNotif.message,
         category: newNotif.category, risk: newNotif.risk || null,
-      }).select().single();
-      if (data) setNotifications(prev => prev.map(item => item.id === newNotif.id ? { ...item, ...data, time: 'Just now' } : item));
+        actor_name: studentName, actor_year_level: yearLevel || null, event_type: newNotif.type,
+      };
+      const isStaffAudience = roles.some((role) => role === 'counselor' || role === 'admin');
+      const result = isStaffAudience && user.role === 'student'
+        ? await supabase.rpc('create_staff_notification', {
+          p_title: payload.title, p_message: payload.message, p_audience: payload.audience_roles,
+          p_category: payload.category, p_risk: payload.risk, p_actor_name: payload.actor_name,
+          p_actor_year_level: payload.actor_year_level, p_event_type: payload.event_type,
+        })
+        : await supabase.from('notifications').insert(payload).select().single();
+      const data = result.data;
+      if (result.error) {
+        setNotifications(prev => prev.filter(item => item.id !== newNotif.id));
+        throw result.error;
+      }
+      if (data) setNotifications(prev => prev.map(item => item.id === newNotif.id ? normalizeNotificationRecord(data) : item));
     }
   };
 
@@ -193,13 +234,18 @@ export const SystemProvider = ({ children }) => {
   };
 
   const updateAppointment = async (id, updates) => {
+    const previousAppointments = appointments;
     setAppointments(prev => prev.map(item => (item.id === id ? { ...item, ...updates } : item)));
     if (supabase && typeof id === 'string') {
       const payload = { ...updates };
       if (payload.date) { payload.appointment_date = payload.date; delete payload.date; }
       if (payload.time) { payload.appointment_time = payload.time; delete payload.time; }
       delete payload.assistantState;
-      await supabase.from('appointments').update(payload).eq('id', id);
+      const { error } = await supabase.from('appointments').update(payload).eq('id', id);
+      if (error) {
+        setAppointments(previousAppointments);
+        throw error;
+      }
     }
   };
 

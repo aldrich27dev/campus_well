@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CalendarDays, Clock3, MapPin, Send, Loader2,
-  ChevronRight, CalendarRange, Sparkles, AlertTriangle, CheckCircle2
+  ChevronRight, CalendarRange, Sparkles, AlertTriangle, CheckCircle2, X, Ban, RotateCcw
 } from 'lucide-react';
 import { useSystem } from '../context/SystemContext';
 import { Card, Button } from '../components/UI';
@@ -18,7 +18,7 @@ const formatDateKey = (date) => date.toISOString().slice(0, 10);
 
 const Appointments = () => {
   const navigate = useNavigate();
-  const { user, profile, appointments, createAppointment, addNotification } = useSystem();
+  const { user, profile, appointments, createAppointment, updateAppointment, addNotification } = useSystem();
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedTime, setSelectedTime] = useState('');
   const [reason, setReason] = useState('');
@@ -26,6 +26,11 @@ const Appointments = () => {
   const [loadingDates, setLoadingDates] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [rescheduleTarget, setRescheduleTarget] = useState(null);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleTime, setRescheduleTime] = useState('');
+  const [actionError, setActionError] = useState('');
+  const [savingAction, setSavingAction] = useState(false);
 
   const todayKey = formatDateKey(new Date());
   const yearLevel = profile?.yearLevel || 'N/A';
@@ -92,13 +97,78 @@ const Appointments = () => {
   const activeSelectedTime = selectedTime && openSlots.includes(selectedTime) ? selectedTime : openSlots[0] || '';
   const isSelectedDateFull = selectedDateInfo?.isFull;
   const canBook = selectedDate && activeSelectedTime && !isSelectedDateFull && openSlots.includes(activeSelectedTime);
+  const activeAppointments = useMemo(
+    () => appointments.filter((appt) => ['pending', 'confirmed'].includes(String(appt.status || '').toLowerCase())),
+    [appointments]
+  );
+  const rescheduleSlots = useMemo(() => {
+    if (!rescheduleTarget || !rescheduleDate) return [];
+    return SLOT_OPTIONS.filter((slot) => !appointments.some((appt) => (
+      appt.id !== rescheduleTarget.id
+      && appt.date === rescheduleDate
+      && appt.time === slot
+      && !['cancelled', 'rescheduled'].includes(String(appt.status || '').toLowerCase())
+    )));
+  }, [appointments, rescheduleDate, rescheduleTarget]);
+
+  const openReschedule = (appointment) => {
+    setActionError('');
+    setRescheduleTarget(appointment);
+    setRescheduleDate(appointment.date);
+    setRescheduleTime(appointment.time);
+  };
+
+  const cancelAppointment = async (appointment) => {
+    if (!window.confirm(`Cancel your appointment on ${appointment.date} at ${appointment.time}?`)) return;
+    setActionError('');
+    setSavingAction(true);
+    try {
+      await updateAppointment(appointment.id, { status: 'cancelled', assistantState: 'Cancelled' });
+      await addNotification({ name: user?.name, yearLevel }, 'Appointment Cancelled', {
+        type: 'appointment', category: 'appointment', roles: ['student'],
+        message: `Your counseling appointment on ${appointment.date} at ${appointment.time} was cancelled.`,
+      });
+      await addNotification({ name: user?.name, yearLevel }, 'Appointment Cancelled', {
+        type: 'appointment', category: 'appointment', roles: ['counselor', 'admin'],
+        message: `${user?.name || 'A student'} cancelled the appointment scheduled for ${appointment.date} at ${appointment.time}.`,
+      });
+    } catch (error) {
+      setActionError(error.message || 'Unable to cancel this appointment. Please try again.');
+    } finally {
+      setSavingAction(false);
+    }
+  };
+
+  const confirmReschedule = async () => {
+    if (!rescheduleTarget || !rescheduleDate || !rescheduleTime) return;
+    setActionError('');
+    setSavingAction(true);
+    try {
+      await updateAppointment(rescheduleTarget.id, {
+        date: rescheduleDate, time: rescheduleTime, status: 'pending', assistantState: 'Reschedule requested',
+      });
+      await addNotification({ name: user?.name, yearLevel }, 'Reschedule Requested', {
+        type: 'appointment', category: 'appointment', roles: ['student'],
+        message: `Your appointment was moved to ${rescheduleDate} at ${rescheduleTime} and is awaiting confirmation.`,
+      });
+      await addNotification({ name: user?.name, yearLevel }, 'Appointment Rescheduled', {
+        type: 'appointment', category: 'appointment', roles: ['counselor', 'admin'],
+        message: `${user?.name || 'A student'} requested ${rescheduleDate} at ${rescheduleTime}.`,
+      });
+      setRescheduleTarget(null);
+    } catch (error) {
+      setActionError(error.message || 'Unable to reschedule this appointment. Please try again.');
+    } finally {
+      setSavingAction(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!canBook) return;
     setSubmitting(true);
     await new Promise(resolve => setTimeout(resolve, 800));
 
-    createAppointment({
+    await createAppointment({
       student: user?.name || 'CampusWell Student',
       yearLevel,
       date: selectedDate,
@@ -160,6 +230,42 @@ const Appointments = () => {
             </div>
           )}
         </header>
+
+        {actionError && (
+          <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700 dark:border-rose-500/30 dark:bg-rose-500/10 dark:text-rose-300">
+            {actionError}
+          </div>
+        )}
+
+        {activeAppointments.length > 0 && (
+          <Card className="p-5 md:p-6 rounded-[2rem]">
+            <div className="flex items-center justify-between gap-4 mb-4">
+              <div>
+                <h2 className="text-base font-black uppercase italic tracking-tighter text-foreground">Your booked appointments</h2>
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground mt-1">You can cancel or request a new schedule before the session is completed.</p>
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest text-campus-green">{activeAppointments.length} active</span>
+            </div>
+            <div className="space-y-3">
+              {activeAppointments.map((appointment) => (
+                <div key={appointment.id} className="flex flex-col md:flex-row md:items-center justify-between gap-4 rounded-2xl border border-border bg-muted/20 p-4">
+                  <div>
+                    <p className="font-black text-foreground">{new Date(`${appointment.date}T00:00:00`).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · {appointment.time}</p>
+                    <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-muted-foreground">{appointment.status} · {appointment.reason || 'Counseling request'}</p>
+                  </div>
+                  <div className="flex flex-col sm:flex-row gap-2">
+                    <Button variant="outline" disabled={savingAction} onClick={() => openReschedule(appointment)} className="px-4 py-3 rounded-xl">
+                      <RotateCcw size={15} /> Reschedule
+                    </Button>
+                    <button type="button" disabled={savingAction} onClick={() => cancelAppointment(appointment)} className="px-4 py-3 rounded-xl border border-rose-200 text-[10px] font-black uppercase tracking-widest text-rose-600 transition-colors hover:bg-rose-50 disabled:opacity-50 dark:border-rose-500/30 dark:hover:bg-rose-500/10">
+                      <Ban size={15} className="inline mr-1" /> Cancel
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Card>
+        )}
 
         <AnimatePresence mode="wait">
           {!submitted ? (
@@ -334,6 +440,32 @@ const Appointments = () => {
                 </Button>
               </div>
             </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {rescheduleTarget && (
+            <MotionDiv className="fixed inset-0 z-[120] flex items-center justify-center p-4" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+              <button type="button" aria-label="Close reschedule dialog" onClick={() => setRescheduleTarget(null)} className="absolute inset-0 bg-background/70 backdrop-blur-sm" />
+              <div className="relative w-full max-w-xl rounded-[2rem] border border-border bg-surface p-6 shadow-2xl dark:bg-surface-elevated">
+                <div className="flex items-start justify-between gap-4">
+                  <div><h2 className="text-xl font-black uppercase italic text-foreground">Reschedule appointment</h2><p className="mt-1 text-xs font-bold text-muted-foreground">Choose an available replacement slot.</p></div>
+                  <button type="button" onClick={() => setRescheduleTarget(null)} className="rounded-xl p-2 text-muted-foreground hover:bg-muted"><X size={18} /></button>
+                </div>
+                <div className="mt-6 grid grid-cols-2 sm:grid-cols-3 gap-3 max-h-60 overflow-y-auto">
+                  {availableDates.map((date) => {
+                    const countWithoutCurrent = date.bookedCount - (date.key === rescheduleTarget.date ? 1 : 0);
+                    const isFull = countWithoutCurrent >= DAILY_CAPACITY;
+                    return <button key={date.key} type="button" disabled={isFull} onClick={() => { setRescheduleDate(date.key); setRescheduleTime(''); }} className={`rounded-xl border p-3 text-left ${rescheduleDate === date.key ? 'border-campus-blue bg-campus-blue/5' : 'border-border'} disabled:opacity-40`}><p className="text-[9px] font-black uppercase text-muted-foreground">{date.day}</p><p className="font-black text-foreground">{date.label}</p></button>;
+                  })}
+                </div>
+                <div className="mt-5 grid grid-cols-2 gap-3">
+                  {rescheduleSlots.map((slot) => <button key={slot} type="button" onClick={() => setRescheduleTime(slot)} className={`rounded-xl border p-3 text-left text-[10px] font-black uppercase tracking-widest ${rescheduleTime === slot ? 'border-campus-blue bg-campus-blue text-primary-foreground' : 'border-border text-foreground'}`}>{slot}</button>)}
+                </div>
+                {rescheduleDate && rescheduleSlots.length === 0 && <p className="mt-3 text-xs font-bold text-rose-600">No available time slots on this date.</p>}
+                <div className="mt-6 flex gap-3"><Button variant="primary" disabled={!rescheduleTime || savingAction} onClick={confirmReschedule} className="flex-1 rounded-xl">{savingAction ? <Loader2 size={16} className="animate-spin" /> : 'Request reschedule'}</Button><Button variant="outline" onClick={() => setRescheduleTarget(null)} className="rounded-xl">Close</Button></div>
+              </div>
+            </MotionDiv>
           )}
         </AnimatePresence>
       </div>

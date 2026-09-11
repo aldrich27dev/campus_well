@@ -59,28 +59,28 @@ const Assessment = () => {
     }
 
     setTimeout(() => {
-      if (totalScore >= 12) {
+      if (riskLevel !== 'Normal') {
         addNotification(
           { name: user?.name || 'Aldrich Naag', yearLevel: profile?.yearLevel || '2nd Year' },
-          'High Stress Alert Detected',
+          `${riskLevel} Stress Alert Detected`,
           {
-            risk: 'High',
+            risk: riskLevel,
             type: 'assessment',
             category: 'assessment',
             roles: ['student'],
-            message: 'A support check-in has been shared with the counseling team after your recent assessment.',
+            message: `A ${riskLevel.toLowerCase()}-risk support check-in has been shared with the counseling team after your recent assessment.`,
           }
         );
 
         addNotification(
           { name: user?.name || 'Aldrich Naag', yearLevel: profile?.yearLevel || '2nd Year' },
-          'High Stress Alert Detected',
+          `${riskLevel} Stress Alert Detected`,
           {
-            risk: 'High',
+            risk: riskLevel,
             type: 'assessment',
             category: 'assessment',
             roles: ['counselor', 'admin'],
-            message: `${user?.name || 'Aldrich Naag'} - ${profile?.yearLevel || '2nd Year'} triggered a high-risk wellness alert.`,
+            message: `${user?.name || 'A student'} - ${profile?.yearLevel || 'N/A'} triggered a ${riskLevel.toLowerCase()}-risk wellness alert.`,
           }
         );
       }
